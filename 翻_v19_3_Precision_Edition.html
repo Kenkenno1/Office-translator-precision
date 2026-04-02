@@ -1,0 +1,3420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻 — v19.3 Precision Edition — Style & Parse Enhanced</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Noto+Serif+JP:wght@300;400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sumi: #1a1a1a;
+            --sumi-light: #4a4a4a;
+            --washi: #f4f1ea;
+            --washi-glass: rgba(244, 241, 234, 0.85);
+            --kin: #a89f91;
+            --kin-active: #8b7355;
+            --aka: #c15436;
+            --midori: #4a6a58;
+            --ai: #2563eb;
+            --chart-color: #f59e0b;
+            --smartart-color: #8b5cf6;
+            --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Noto Serif JP", "Noto Sans TC", serif;
+            background-color: var(--washi);
+            color: var(--sumi);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            min-height: 100vh;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 8px;
+        }
+        .brand-group { display: flex; flex-direction: column; }
+        .brand-mark {
+            font-family: 'Cinzel', serif;
+            font-size: 3.5rem;
+            line-height: 1;
+            color: var(--sumi);
+            letter-spacing: -2px;
+            position: relative;
+        }
+        .brand-sub {
+            font-size: 0.85rem;
+            color: var(--sumi-light);
+            letter-spacing: 4px;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--chart-color), var(--smartart-color));
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .menu-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.5);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s var(--ease-out);
+        }
+        .menu-btn:hover { background: var(--sumi); color: var(--washi); transform: rotate(90deg); }
+        .control-panel {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255,255,255,0.6);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-soft);
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 2fr;
+            gap: 20px;
+            align-items: center;
+        }
+        @media (max-width: 900px) { .control-panel { grid-template-columns: 1fr; gap: 16px; } }
+        .file-input-wrapper {
+            position: relative;
+            height: 60px;
+            border: 1px dashed var(--kin);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+        }
+        .file-input-wrapper:hover { border-color: var(--sumi); background: rgba(255,255,255,0.6); }
+        .file-input-wrapper.dragover { border-color: var(--midori); background: rgba(74, 106, 88, 0.12); border-style: solid; }
+        .file-input-wrapper input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .file-label { font-size: 0.9rem; color: var(--sumi-light); pointer-events: none; display: flex; align-items: center; gap: 10px; }
+        .lang-group {
+            display: flex;
+            align-items: center;
+            background: var(--washi);
+            border-radius: 10px;
+            padding: 4px;
+        }
+        .lang-select {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+        }
+        .lang-swap {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+        .lang-swap:hover { transform: rotate(180deg); }
+        .action-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media (max-width: 768px) { .action-group { grid-template-columns: repeat(2, 1fr); } }
+        .action-btn {
+            border: none;
+            background: white;
+            border-radius: 12px;
+            height: 70px;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .action-btn:hover:not(:disabled) { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-label { font-size: 1.1rem; letter-spacing: 2px; color: var(--sumi); font-weight: 500; }
+        #btnDown:not(:disabled) .btn-label { color: var(--midori); }
+        @keyframes downloadGlow {
+            0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            50% { box-shadow: 0 4px 25px rgba(74, 106, 88, 0.4), 0 0 40px rgba(74, 106, 88, 0.2); }
+        }
+        @keyframes downloadPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        #btnDown.ready-glow {
+            animation: downloadGlow 2s ease-in-out infinite, downloadPulse 2s ease-in-out infinite;
+            border: 2px solid var(--midori);
+        }
+        #btnDown.ready-glow .btn-label { color: var(--midori); font-weight: 600; }
+        .preview-container {
+            flex: 1;
+            background: rgba(255,255,255,0.25);
+            border-radius: var(--radius);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .preview-header {
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .preview-title { font-size: 0.9rem; color: var(--kin-active); letter-spacing: 2px; text-transform: uppercase; }
+        .stat-badge { font-family: 'Cinzel', serif; font-size: 1.2rem; color: var(--sumi); }
+        .preview-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .seg-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr;
+            gap: 24px;
+            opacity: 0;
+            animation: slideIn 0.4s forwards;
+        }
+        @media (max-width: 768px) { .seg-card { grid-template-columns: 1fr; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .seg-id { font-family: 'Cinzel', serif; color: var(--kin); font-size: 0.9rem; }
+        .seg-text { font-size: 0.95rem; line-height: 1.7; white-space: pre-wrap; word-break: break-all; }
+        .empty-placeholder { color: var(--kin); opacity: 0.5; font-size: 0.8rem; font-style: italic; }
+        .tag { display: inline-block; font-family: monospace; font-size: 0.75em; background: var(--washi); color: var(--kin-active); padding: 0 4px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); margin: 0 2px; }
+        .badge { display: inline-block; font-size: 0.65rem; background: var(--kin); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        .badge-table { background: var(--ai); }
+        .badge-title { background: #dc2626; }
+        .badge-header { background: #7c3aed; }
+        .badge-scr { background: linear-gradient(135deg, var(--ai), var(--midori)); }
+        .badge-chart { background: var(--chart-color); }
+        .badge-smartart { background: var(--smartart-color); }
+        .badge-chartTitle { background: linear-gradient(135deg, var(--chart-color), #d97706); }
+        .badge-axisTitle { background: #78716c; }
+        .badge-legend { background: #0891b2; }
+        .badge-category { background: #059669; }
+        .badge-dataLabel { background: #ea580c; }
+        .badge-notes { background: #92400e; }
+        .badge-comment { background: #6b7280; }
+        .badge-merged { background: #4338ca; }
+        .badge-fragmented { background: var(--chart-color); }
+        @keyframes flashUpdate { 0% { background-color: rgba(74, 106, 88, 0.15); } 100% { background-color: white; } }
+        .flash { animation: flashUpdate 1.2s var(--ease-out); }
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26,26,26,0.3);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+            z-index: 900;
+        }
+        .drawer {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 420px;
+            max-width: 90vw;
+            background: var(--washi-glass);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+        .drawer.active, .drawer-overlay.active { transform: translateX(0); opacity: 1; pointer-events: auto; }
+        .drawer-header { padding: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .drawer-header h2 { font-family: 'Cinzel', serif; font-size: 1.5rem; }
+        .drawer-content { flex: 1; overflow-y: auto; padding: 0 30px 30px; }
+        .setting-section { margin-bottom: 28px; }
+        .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--kin-active); margin-bottom: 12px; display: block; }
+        .input-glass { width: 100%; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.1); padding: 12px; border-radius: 8px; font-family: inherit; }
+        .input-glass:focus { outline: none; background: white; border-color: var(--sumi); }
+        .option-group { display: flex; flex-direction: column; gap: 10px; }
+        .option-group label { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; }
+        .option-hint { font-size: 0.75rem; color: var(--sumi-light); margin-left: 26px; opacity: 0.8; }
+        .polish-style-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .polish-style-btn { padding: 8px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: rgba(255,255,255,0.5); cursor: pointer; font-size: 0.8rem; }
+        .polish-style-btn.active { background: var(--sumi); color: white; }
+        .glossary-container { border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.5); }
+        .glossary-input-row { display: grid; grid-template-columns: 1fr 1fr 1fr 36px; gap: 4px; background: rgba(0,0,0,0.03); padding: 8px; }
+        .glossary-input-row input { border: 1px solid transparent; background: white; padding: 6px 8px; border-radius: 6px; font-size: 0.8rem; }
+        .glossary-list { max-height: 150px; overflow-y: auto; }
+        .glossary-item { display: grid; grid-template-columns: 1fr 1fr 1fr 36px; gap: 4px; padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 0.8rem; }
+        .glossary-item:hover { background: rgba(0,0,0,0.02); }
+        .glossary-del { background: none; border: none; color: var(--aka); cursor: pointer; }
+        .btn-add { background: var(--midori); color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .glossary-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+        .glossary-action-btn { font-size: 0.75rem; padding: 4px 8px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; background: rgba(255,255,255,0.5); cursor: pointer; }
+        .glossary-action-btn:hover { background: white; }
+        .feature-highlight {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .feature-highlight-title { font-size: 0.9rem; font-weight: 600; color: var(--sumi); margin-bottom: 4px; }
+        .progress-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(244,241,234,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 2000;
+        }
+        .progress-overlay.active { opacity: 1; pointer-events: auto; }
+        .progress-status { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--sumi); }
+        .progress-detail { font-size: 2.5rem; font-weight: 600; color: var(--sumi); font-family: 'Cinzel', serif; }
+        .progress-bar-bg { width: 320px; height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--chart-color), var(--smartart-color)); border-radius: 3px; transition: width 0.3s; }
+        .progress-bar-fill.processing { animation: progressPulse 1.5s ease-in-out infinite; }
+        @keyframes progressPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .progress-text { font-size: 0.85rem; color: var(--sumi-light); letter-spacing: 2px; }
+        .stop-fab {
+            position: absolute;
+            bottom: 80px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: var(--aka);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(193, 84, 54, 0.4);
+            transition: transform 0.2s;
+        }
+        .stop-fab:hover { transform: scale(1.1); }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26,26,26,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 3000;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: white;
+            padding: 40px;
+            border-radius: var(--radius);
+            text-align: center;
+            max-width: 400px;
+        }
+        .modal h3 { font-family: 'Cinzel', serif; font-size: 1.5rem; margin-bottom: 16px; }
+        .modal p { color: var(--sumi-light); margin-bottom: 24px; }
+        .modal-btn {
+            background: var(--sumi);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        /* Toast Notifications */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast-item {
+            pointer-events: auto; padding: 12px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 500;
+            color: var(--sumi); max-width: 360px; display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.08);
+            -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            animation: toastIn 0.3s var(--ease-out), toastOut 0.3s var(--ease-out) forwards;
+        }
+        .toast-item.warn { border-left: 3px solid var(--chart-color); }
+        .toast-item.error { border-left: 3px solid var(--aka); }
+        .toast-item.success { border-left: 3px solid var(--midori); }
+        .toast-item.info { border-left: 3px solid var(--ai); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { 0%, 70% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(40px); } }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <div class="brand-group">
+            <h1 class="brand-mark">翻<span class="version-badge">v19.3</span></h1>
+            <span class="brand-sub">Precision Edition — Style & Parse Enhanced</span>
+        </div>
+        <button class="menu-btn" onclick="UI.toggleDrawer()">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+    </div>
+    <div class="control-panel">
+        <div class="file-input-wrapper" role="button" tabindex="0" aria-label="拖放或點擊選擇檔案">
+            <input type="file" id="fileInput" accept=".pptx,.docx,.xlsx,.txt">
+            <span class="file-label" id="fileName">📎 Select File...</span>
+        </div>
+        <div class="lang-group">
+            <select class="lang-select" id="sourceLang"></select>
+            <button class="lang-swap" onclick="ENGINE.swapLang()">⇄</button>
+            <select class="lang-select" id="targetLang"></select>
+        </div>
+        <div class="action-group">
+            <button class="action-btn" id="btnParse" onclick="ENGINE.loadAndParse()"><span class="btn-label">解析</span></button>
+            <button class="action-btn" id="btnTrans" onclick="ENGINE.translate()" disabled><span class="btn-label">翻譯</span></button>
+            <button class="action-btn" id="btnPolish" onclick="ENGINE.polish()" disabled><span class="btn-label">潤稿</span></button>
+            <button class="action-btn" id="btnDown" onclick="ENGINE.download()" disabled><span class="btn-label">下載</span></button>
+        </div>
+    </div>
+    <div class="preview-container">
+        <div class="preview-header">
+            <span class="preview-title">Preview Context</span>
+            <span class="stat-badge" id="segCount">0</span>
+        </div>
+        <div id="perfStats" style="display:none; padding:6px 16px; font-size:0.75rem; color:var(--sumi-light); background:rgba(0,0,0,0.03); border-bottom:1px solid rgba(0,0,0,0.05);">⚡ <span id="perfTime">-</span>ms | 批次: <span id="perfBatches">-</span> | 修復/優化: <span id="perfRepairs">0</span></div>
+        <div class="preview-list" id="previewList"><div style="text-align:center; padding: 40px; color: var(--kin);">選擇檔案並點擊「解析」開始</div></div>
+    </div>
+</div>
+<div class="drawer-overlay" id="drawerOverlay" onclick="UI.toggleDrawer()"></div>
+<div class="drawer" id="drawer">
+    <div class="drawer-header">
+        <h2>System</h2>
+        <button onclick="UI.toggleDrawer()" style="background:none; border:none; cursor:pointer; font-size:1.5rem;">×</button>
+    </div>
+    <div class="drawer-content">
+        <div class="setting-section">
+            <label class="section-label">API Key (Gemini)</label>
+            <input type="password" id="apiKey" class="input-glass" placeholder="Google Gemini API Key" onchange="ENGINE.saveKey()">
+            <div style="font-size:0.75rem; color:var(--sumi-light); margin-top:6px;"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--kin-active);">取得 API Key ➜</a> <span style="opacity:0.7;">Key stored locally in browser only</span></div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Model</label>
+            <select id="model" class="input-glass"></select>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">v19.3 Features</label>
+            <div class="feature-highlight">
+                <div class="feature-highlight-title">📊 Chart & SmartArt (PPTX + DOCX)</div>
+                <div style="font-size:0.75rem; color:var(--sumi-light);">圖表標題/軸標題/圖例/分類標籤/資料標籤 + SmartArt 節點文字</div>
+            </div>
+            <div class="option-group">
+                <label><input type="checkbox" id="optChart" checked> 📊 Chart Translation (PPTX + DOCX)</label>
+                <label><input type="checkbox" id="optSmartArt" checked> 🎨 SmartArt Translation (PPTX + DOCX)</label>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Advanced Features</label>
+            <div class="option-group">
+                <label><input type="checkbox" id="optTableVGM" checked> 📊 Table VGM (Virtual Grid Matrix)</label>
+                <div class="option-hint">精確處理合併儲存格，避免重複翻譯或遺漏</div>
+                <label><input type="checkbox" id="optHOPE" checked> 🛡️ Overflow Defense (HOPE)</label>
+                <div class="option-hint">自動縮小字級防止表格文字溢出（最小 8pt）</div>
+                <label><input type="checkbox" id="optSCR" checked> 🧠 Semantic Context Reconstruction</label>
+                <div class="option-hint">解決雙欄排版的閱讀順序問題，提升翻譯一致性</div>
+                <label><input type="checkbox" id="optPreAnalyze" checked> 🔍 Pre-Analysis (術語提取+策略)</label>
+                <div class="option-hint">翻譯前先分析術語與策略，確保一致性。關閉可加速短文件翻譯</div>
+                <label><input type="checkbox" id="optAdjacentContext"> 📎 Adjacent Context (批次間上下文)</label>
+                <div class="option-hint">每批附加前一批摘要，提升連貫性。會略增 API 回應時間</div>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Translation Scope</label>
+            <div class="option-group">
+                <label><input type="checkbox" id="optIncludeNotes"> 📝 Include Speaker Notes</label>
+                <label><input type="checkbox" id="optIncludeComments" checked> 💬 Include Comments</label>
+                <label><input type="checkbox" id="optIncludeMaster"> 🎨 Include Master/Layout Slides</label>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Conversion Repair</label>
+            <div class="option-group">
+                <label><input type="checkbox" id="optMergeFragments" checked> 🔗 Merge Fragment Text</label>
+                <div class="option-hint">PDF-to-PPTX/DOCX often produces broken text; this merges intelligently</div>
+                <label><input type="checkbox" id="optCleanWhitespace" checked> 🧹 Clean Fake Whitespace</label>
+                <div class="option-hint">Remove zero-width spaces, NBSP, and other pseudo-whitespace</div>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Advanced Layout Repair (PPTX only)</label>
+            <div class="option-group">
+                <label><input type="checkbox" id="optFixFont"> Auto-shrink font to fit layout</label>
+                <label><input type="checkbox" id="optFixLang"> Fix spell-check language tags</label>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Polish Style</label>
+            <div class="polish-style-group">
+                <button class="polish-style-btn active" data-style="standard" onclick="ENGINE.setPolishStyle('standard')">✨ Standard</button>
+                <button class="polish-style-btn" data-style="literary" onclick="ENGINE.setPolishStyle('literary')">✒️ Literary</button>
+                <button class="polish-style-btn" data-style="technical" onclick="ENGINE.setPolishStyle('technical')">🔧 Technical</button>
+                <button class="polish-style-btn" data-style="marketing" onclick="ENGINE.setPolishStyle('marketing')">📢 Marketing</button>
+            </div>
+            <div style="margin-top: 12px;">
+                <label class="section-label">Polish Mode</label>
+                <div class="option-group">
+                    <label><input type="radio" name="polishMode" value="batch" checked> 🔧 JSON Batch (快速，逐批潤稿)</label>
+                    <label><input type="radio" name="polishMode" value="context"> 🧠 Cross-Segment Context (跨段語境審閱)</label>
+                    <div class="option-hint">跨段模式：偵測代詞性別錯配、術語不一致、語體統一等斷裂語境問題</div>
+                </div>
+            </div>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Glossary</label>
+            <div class="glossary-actions">
+                <button class="glossary-action-btn" onclick="ENGINE.importGlossary()">📥 Import</button>
+                <button class="glossary-action-btn" onclick="ENGINE.exportGlossary()">📤 Export</button>
+                <button class="glossary-action-btn" onclick="ENGINE.clearGlossary()">🗑️ Clear</button>
+            </div>
+            <div class="glossary-container">
+                <div class="glossary-input-row">
+                    <input type="text" id="termSrc" placeholder="Source term" onkeypress="if(event.key==='Enter')ENGINE.addGlossaryTerm()">
+                    <input type="text" id="termTgt" placeholder="Target term" onkeypress="if(event.key==='Enter')ENGINE.addGlossaryTerm()">
+                    <input type="text" id="termNote" placeholder="Note" onkeypress="if(event.key==='Enter')ENGINE.addGlossaryTerm()">
+                    <button class="btn-add" onclick="ENGINE.addGlossaryTerm()">+</button>
+                </div>
+                <div class="glossary-list" id="glossaryList"><div style="padding:16px; text-align:center; color:var(--kin); font-size:0.8rem;">尚無術語</div></div>
+            </div>
+            <input type="file" id="glossaryFileInput" accept=".csv,.txt" style="display:none;" onchange="ENGINE.handleGlossaryFile(event)">
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Translation Memory</label>
+            <div style="font-size:0.8rem; color:var(--sumi-light); margin-bottom:10px;">IndexedDB local fast cache enabled</div>
+            <button onclick="TM.clear()" class="input-glass" style="color:var(--aka); border-color:var(--aka); cursor:pointer;">清空記憶庫</button>
+        </div>
+        <div class="setting-section">
+            <label class="section-label">Download Mode</label>
+            <div class="option-group">
+                <label><input type="radio" name="downloadMode" value="translated" checked> 🎯 Translated only</label>
+                <label><input type="radio" name="downloadMode" value="bilingual"> 📝 Bilingual side-by-side (PPTX + DOCX)</label>
+                <label><input type="radio" name="downloadMode" value="original"> 📚 Original only</label>
+            </div>
+            <div style="font-size:0.7rem; color:var(--sumi-light); margin-top:6px;">Chart bilingual: original+translated on new line. DOCX bilingual: translated paragraph inserted after original. XLSX/TXT auto-downgrades to translated.</div>
+        </div>
+    </div>
+</div>
+<div class="progress-overlay" id="progressOverlay">
+    <div class="progress-status" id="progressStatus">處理中</div>
+    <div class="progress-detail" id="progressDetail"></div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText" aria-live="polite">INITIALIZING...</div>
+    <button class="stop-fab" onclick="ENGINE.stopProcessing()">
+        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+</div>
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-label="通知">
+    <div class="modal">
+        <h3 id="modalTitle">完成</h3>
+        <p id="modalMsg">操作已完成。</p>
+        <button class="modal-btn" onclick="UI.closeModal()">確定</button>
+    </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+// ============================================================
+// Polyfills
+// ============================================================
+if (!AbortSignal.any) {
+    AbortSignal.any = function(signals) {
+        const ac = new AbortController();
+        for (const s of signals) {
+            if (s.aborted) { ac.abort(s.reason); return ac.signal; }
+            s.addEventListener('abort', () => ac.abort(s.reason), { once: true });
+        }
+        return ac.signal;
+    };
+}
+// ============================================================
+// 翻 v19.3 Precision Edition — Style & Parse Enhanced
+// Single-page client-side document translation tool
+// v19.3 Changes:
+//   - [P0] extractRunStyle PPTX: +schemeClr, hlinkClick, strike,
+//          effectLst(shadow), lang, altLang, baseline (13 props total)
+//   - [P0] extractRunStyle DOCX: +strike, baseline (vertAlign)
+//   - [P0] Merged Run write-back: remove empty <a:r> nodes
+//   - [P1] getStyleFingerprint: +strike, schemeColor, hyperlink, shadow, lang
+//   - [P1] renderWithTags: +strike, baseline, hyperlink visualization
+//   - [P1] visitNode: +cxnSp connector shape traversal
+//   - [P1] DOCX: +ruby (振り仮名), skip fldSimple (auto-fields)
+//   - [P1] Chart _parseChartRichText: handle <a:br> line breaks
+// ============================================================
+
+const MODEL_LIST = [
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash-Lite (快速)', recommended: true },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro' }
+];
+const LANGS = [
+    { code: 'zh-TW', name: '🇹🇼 繁體中文', isCJK: true },
+    { code: 'zh-CN', name: '🇨🇳 簡體中文', isCJK: true },
+    { code: 'en', name: '🇺🇸 English', isCJK: false },
+    { code: 'ja', name: '🇯🇵 日本語', isCJK: true },
+    { code: 'ko', name: '🇰🇷 韓語', isCJK: true },
+    { code: 'vi', name: '🇻🇳 越南語', isCJK: false },
+    { code: 'th', name: '🇹🇭 泰語', isCJK: false },
+    { code: 'de', name: '🇩🇪 德語', isCJK: false },
+    { code: 'fr', name: '🇫🇷 法語', isCJK: false },
+    { code: 'es', name: '🇪🇸 西班牙語', isCJK: false },
+    { code: 'pt', name: '🇵🇹 葡萄牙語', isCJK: false },
+    { code: 'it', name: '🇮🇹 義大利語', isCJK: false },
+    { code: 'ru', name: '🇷🇺 俄語', isCJK: false },
+    { code: 'ar', name: '🇸🇦 阿拉伯語', isCJK: false },
+    { code: 'nl', name: '🇳🇱 荷蘭語', isCJK: false },
+    { code: 'pl', name: '🇵🇱 波蘭語', isCJK: false }
+];
+const TAG_REGEX = /\{\{(\d+)\}\}([\s\S]*?)\{\{\/\1\}\}/g;
+const NUMERIC_RE = /^[\d\s.,+\-$€¥£%()]+$/;
+const NS = {
+    a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+    p: 'http://schemas.openxmlformats.org/presentationml/2006/main',
+    r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+    w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+    dgm: 'http://schemas.openxmlformats.org/drawingml/2006/diagram',
+    c: 'http://schemas.openxmlformats.org/drawingml/2006/chart',
+    xdr: 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'
+};
+
+// --- Utilities ---
+function getEls(parent, nsUri, localName, prefix) {
+    let nodes = parent.getElementsByTagNameNS(nsUri, localName);
+    if (!nodes.length && prefix) nodes = parent.getElementsByTagName(`${prefix}:${localName}`);
+    if (!nodes.length) nodes = parent.getElementsByTagName(localName);
+    return nodes;
+}
+function safeParseXml(xmlStr) {
+    const doc = new DOMParser().parseFromString(xmlStr, "text/xml");
+    if (doc.querySelector('parsererror')) { console.warn('[XML Parse Error]', doc.querySelector('parsererror').textContent?.slice(0, 200)); return null; }
+    return doc;
+}
+function showToast(message, type = 'info', duration = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast-item ${type}`;
+    const icons = { info: '\u2139\uFE0F', warn: '\u26A0\uFE0F', error: '\u274C', success: '\u2705' };
+    toast.textContent = `${icons[type] || ''} ${message}`;
+    toast.style.animationDuration = '0.3s, 0.3s';
+    toast.style.animationDelay = `0s, ${(duration - 300) / 1000}s`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), duration);
+}
+function escapeHTML(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function downloadBlob(blob, filename) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+function safeHex6(v) { return v && /^[0-9A-Fa-f]{6}$/.test(v) ? v : null; }
+
+// --- Translation Memory (IndexedDB) ---
+const TM = {
+    db: null, dbName: 'Claude_CAT_TM', storeName: 'segments', version: 2,
+    async init() {
+        if (this.db) return this.db;
+        return new Promise((res, rej) => {
+            const req = indexedDB.open(this.dbName, this.version);
+            req.onerror = () => rej(req.error);
+            req.onsuccess = () => { this.db = req.result; res(this.db); };
+            req.onupgradeneeded = e => { const db = e.target.result; if (!db.objectStoreNames.contains(this.storeName)) db.createObjectStore(this.storeName, { keyPath: 'key' }); };
+        });
+    },
+    makeKey(src, srcL, tgtL) { return `${srcL}|${tgtL}|${src.trim()}`; },
+    async get(src, srcL, tgtL) {
+        if (!this.db) await this.init();
+        return new Promise(res => { const tx = this.db.transaction(this.storeName, 'readonly'), req = tx.objectStore(this.storeName).get(this.makeKey(src, srcL, tgtL)); req.onsuccess = () => res(req.result?.tgt || null); req.onerror = () => res(null); });
+    },
+    async set(src, tgt, srcL, tgtL) {
+        if (!this.db) await this.init();
+        return new Promise(res => { const tx = this.db.transaction(this.storeName, 'readwrite'); tx.objectStore(this.storeName).put({ key: this.makeKey(src, srcL, tgtL), src, tgt, srcL, tgtL, ts: Date.now() }); tx.oncomplete = () => res(true); tx.onerror = () => res(false); });
+    },
+    async batchGet(keys) {
+        if (!this.db) await this.init();
+        return new Promise(res => {
+            const tx = this.db.transaction(this.storeName, 'readonly'), store = tx.objectStore(this.storeName);
+            const hits = new Map(), misses = [];
+            let pending = keys.length;
+            if (pending === 0) return res({ hits, misses });
+            keys.forEach(k => { const req = store.get(k.key); req.onsuccess = () => { if (req.result?.tgt) hits.set(k.key, req.result.tgt); else misses.push(k); if (--pending === 0) res({ hits, misses }); }; req.onerror = () => { misses.push(k); if (--pending === 0) res({ hits, misses }); }; });
+        });
+    },
+    async clear() {
+        if (!this.db) await this.init();
+        return new Promise(res => {
+            const tx = this.db.transaction(this.storeName, 'readwrite');
+            tx.objectStore(this.storeName).clear();
+            tx.oncomplete = () => {
+                if (typeof ENGINE !== 'undefined' && ENGINE.segments) {
+                    ENGINE.segments.forEach(s => { s.target = ''; });
+                    UI.render();
+                }
+                showToast('記憶庫已清空，可重新翻譯', 'success');
+                res(true);
+            };
+        });
+    }
+};
+
+// --- UI Module ---
+const UI = {
+    toggleDrawer() { document.getElementById('drawer').classList.toggle('active'); document.getElementById('drawerOverlay').classList.toggle('active'); },
+    showProgress(active, processed, total, txt) {
+        const o = document.getElementById('progressOverlay');
+        const statusEl = document.getElementById('progressStatus');
+        const detailEl = document.getElementById('progressDetail');
+        const barEl = document.getElementById('progressBar');
+        const textEl = document.getElementById('progressText');
+        if (active) {
+            o.classList.add('active');
+            if (typeof processed === 'number' && typeof total === 'number' && total > 0) {
+                statusEl.textContent = txt || '處理中';
+                detailEl.textContent = `${processed} / ${total}`;
+                const pct = Math.min(100, Math.max(0, (processed / total) * 100));
+                barEl.style.width = pct + '%';
+                barEl.classList.add('processing');
+                textEl.textContent = processed === total ? '即將完成...' : '請稍候，正在處理您的文件';
+            } else if (typeof processed === 'number') {
+                statusEl.textContent = txt || '處理中';
+                detailEl.textContent = '';
+                barEl.style.width = processed + '%';
+                barEl.classList.add('processing');
+                textEl.textContent = txt || '';
+            } else {
+                statusEl.textContent = txt || '處理中';
+                detailEl.textContent = '';
+                barEl.classList.add('processing');
+                textEl.textContent = '請稍候...';
+            }
+        } else {
+            o.classList.remove('active');
+            barEl.classList.remove('processing');
+        }
+    },
+    showModal(t, m) { document.getElementById('modalTitle').innerText = t; document.getElementById('modalMsg').innerHTML = m; document.getElementById('modalOverlay').classList.add('active'); },
+    closeModal() { document.getElementById('modalOverlay').classList.remove('active'); },
+    // v19.3: Enhanced with strike, baseline, hyperlink visualization
+    renderWithTags(t, refs) {
+        if (!t) return '<span class="empty-placeholder">等待翻譯...</span>';
+        return escapeHTML(t).replace(/\{\{(\d+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (m, id, c) => {
+            let s = ""; const r = refs?.[parseInt(id)];
+            if (r?.style) {
+                if (r.style.b) s += "font-weight:bold;";
+                if (r.style.i) s += "font-style:italic;";
+                let td = [], tdStyle = '';
+                if (r.style.u) {
+                    td.push("underline");
+                    const uType = r.style.u;
+                    if (uType === 'dbl') tdStyle = 'text-decoration-style:double;';
+                    else if (uType === 'wavy' || uType === 'wavyHeavy' || uType === 'wavyDbl') tdStyle = 'text-decoration-style:wavy;';
+                    else if (uType === 'dash' || uType === 'dashLong' || uType === 'dashLongHeavy' || uType === 'dashHeavy') tdStyle = 'text-decoration-style:dashed;';
+                    else if (uType === 'dotted' || uType === 'dottedHeavy') tdStyle = 'text-decoration-style:dotted;';
+                }
+                if (r.style.strike) td.push("line-through");
+                if (td.length) s += `text-decoration:${td.join(' ')};${tdStyle}`;
+                const hex = safeHex6(r.style.color);
+                if (hex) {
+                    // Check contrast against preview background (#f4f1ea) to avoid invisible text
+                    const cr = parseInt(hex.slice(0,2),16), cg = parseInt(hex.slice(2,4),16), cb = parseInt(hex.slice(4,6),16);
+                    const lum = (0.299*cr + 0.587*cg + 0.114*cb) / 255;
+                    if (lum < 0.85) s += `color:#${hex};`;
+                    // lum >= 0.85: too light on washi bg, fall back to default dark text
+                }
+                if (r.style.baseline > 0) s += "vertical-align:super;font-size:0.8em;";
+                else if (r.style.baseline < 0) s += "vertical-align:sub;font-size:0.8em;";
+            }
+            let linkStart = '', linkEnd = '';
+            if (r?.style?.hasHyperlink) {
+                linkStart = '<span title="Hyperlink" style="border-bottom:1px dashed #2563eb;">';
+                linkEnd = '</span>';
+            }
+            return `<span class="tag">{{${id}}}</span>${linkStart}<span style="${s}">${c}</span>${linkEnd}<span class="tag">{{/${id}}}</span>`;
+        });
+    },
+    render() {
+        const list = document.getElementById('previewList');
+        const segs = ENGINE.segments;
+        document.getElementById('segCount').textContent = segs.length;
+        if (segs.length === 0) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--kin);">無可顯示的內容</div>'; return; }
+        list.innerHTML = segs.map((s, i) => {
+            let badge = '';
+            const ct = s.meta?.containerType, role = s.meta?.role;
+            if (ct === 'chart' || ct === 'docx-chart') badge += '<span class="badge badge-chart">Chart</span>';
+            else if (ct === 'smartart' || ct === 'docx-smartart') badge += '<span class="badge badge-smartart">SmartArt</span>';
+            else if (ct === 'table') badge += '<span class="badge badge-table">Table</span>';
+            else if (ct === 'notes') badge += '<span class="badge badge-notes">Notes</span>';
+            else if (ct === 'comment') badge += '<span class="badge badge-comment">Comment</span>';
+            if (role === 'chartTitle') badge += '<span class="badge badge-chartTitle">Title</span>';
+            else if (role === 'axisTitle') badge += '<span class="badge badge-axisTitle">Axis</span>';
+            else if (role === 'legendLabel') badge += '<span class="badge badge-legend">Legend</span>';
+            else if (role === 'categoryLabel') badge += '<span class="badge badge-category">Category</span>';
+            else if (role === 'dataLabel') badge += '<span class="badge badge-dataLabel">DataLabel</span>';
+            else if (role === 'title') badge += '<span class="badge badge-title">Title</span>';
+            else if (role === 'tableHeader') badge += '<span class="badge badge-header">Header</span>';
+            if (s.meta?.didMerge) badge += '<span class="badge badge-merged">🔗 Merged</span>';
+            else if (s.meta?.fragmented) badge += '<span class="badge badge-fragmented">⚠️ Fragmented</span>';
+            if (s.meta?.groupId && document.getElementById('optSCR')?.checked) badge += `<span class="badge badge-scr">${escapeHTML(s.meta.groupId.split('_').pop())}</span>`;
+            if (s.meta?.slideId) badge += `<span class="badge" style="background:#64748b;font-size:9px;">#${escapeHTML(s.meta.slideId.replace('slide',''))}</span>`;
+            const delay = Math.min(i * 0.03, 3);
+            return `<div class="seg-card" data-seg-id="${s.id}" style="animation-delay:${delay}s"><div class="seg-id">${s.id+1}</div><div class="seg-text">${this.renderWithTags(s.source, s.refs)}${badge}</div><div class="seg-text seg-tgt">${this.renderWithTags(s.target, s.refs)}</div></div>`;
+        }).join('');
+    },
+    enableDownloadGlow() { document.getElementById('btnDown').classList.add('ready-glow'); },
+    disableDownloadGlow() { document.getElementById('btnDown').classList.remove('ready-glow'); }
+};
+
+// ============================================================
+// ENGINE Module
+// ============================================================
+const ENGINE = {
+    zip: null, fileType: null, originalFileName: null, segments: [], segmentMap: new Map(),
+    relMap: {}, parsedDOMs: {}, glossaryItems: [], currentParsingFile: null,
+    polishStyle: 'standard', stopRequested: false, aborters: new Set(), _busy: false,
+    currentGrpSpId: null, currentPhType: null, currentSlideId: null, currentShapePosition: null,
+    uiUpdateQueue: [], _docxBilingualProcessed: null, perfMetrics: { startTime: 0, batchCount: 0, repairCount: 0 },
+    stats: { totalSegments: 0, translatedSegments: 0, skippedSegments: 0, restoredTags: 0,
+        hopeStats: { safe: 0, shrink: 0, clip: 0 },
+        chartStats: { titles: 0, axes: 0, legends: 0, categories: 0, dataLabels: 0 },
+        smartartStats: { nodes: 0 },
+        sdtResidualCount: 0,
+        translationErrors: [], errors: [] },
+
+    // --- Init ---
+    init() {
+        const k = localStorage.getItem('gemini_api_key'); if (k) document.getElementById('apiKey').value = k;
+        this.loadOptions(); this.initModels(); this.initLangs(); this.loadGlossaryFromStorage(); this.renderGlossary(); this.table.reset(); this.chart.reset(); this.docxTable.reset(); TM.init();
+        document.getElementById('fileInput').addEventListener('change', e => { document.getElementById('fileName').textContent = e.target.files[0]?.name || 'Select File...'; });
+        // Drag-and-drop support
+        const dropZone = document.querySelector('.file-input-wrapper');
+        const fileInput = document.getElementById('fileInput');
+        if (dropZone) {
+            ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+            ['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+            dropZone.addEventListener('drop', e => {
+                const file = e.dataTransfer?.files?.[0];
+                if (file && /\.(pptx|docx|xlsx|txt)$/i.test(file.name)) {
+                    const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                } else if (file) { showToast('不支援的格式，請選擇 .pptx/.docx/.xlsx/.txt', 'warn'); }
+            });
+        }
+        // Keyboard activation for drop zone
+        if (dropZone) dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+        // Escape key closes modal and drawer
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                if (document.getElementById('modalOverlay')?.classList.contains('active')) UI.closeModal();
+                else if (document.getElementById('drawer')?.classList.contains('active')) UI.toggleDrawer();
+            }
+        });
+        ['optIncludeNotes','optIncludeComments','optIncludeMaster','optMergeFragments','optCleanWhitespace','optFixFont','optFixLang','optTableVGM','optHOPE','optSCR','optChart','optSmartArt','optPreAnalyze','optAdjacentContext'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => this.saveOptions());
+        });
+    },
+    initModels() { document.getElementById('model').innerHTML = MODEL_LIST.map(m => `<option value="${m.id}"${m.recommended?' selected':''}>${escapeHTML(m.name)}${m.recommended?' ⭐':''}</option>`).join(''); },
+    initLangs() {
+        const sSel = document.getElementById('sourceLang'), tSel = document.getElementById('targetLang');
+        sSel.innerHTML = '<option value="auto">🔍 自動偵測</option>' + LANGS.map(l => `<option value="${escapeHTML(l.name)}">${escapeHTML(l.name)}</option>`).join('');
+        tSel.innerHTML = LANGS.map(l => `<option value="${escapeHTML(l.name)}"${l.code==='zh-TW'?' selected':''}>${escapeHTML(l.name)}</option>`).join('');
+    },
+    saveKey() { localStorage.setItem('gemini_api_key', document.getElementById('apiKey').value); },
+    loadOptions() { let o = {}; try { o = JSON.parse(localStorage.getItem('claude_cat_opts') || '{}'); } catch (e) { console.warn('[Options] Corrupt stored options, using defaults'); } for (const [k, v] of Object.entries(o)) { const el = document.getElementById(k); if (el?.type === 'checkbox') el.checked = v; } },
+    saveOptions() { const opts = {}; ['optIncludeNotes','optIncludeComments','optIncludeMaster','optMergeFragments','optCleanWhitespace','optFixFont','optFixLang','optTableVGM','optHOPE','optSCR','optChart','optSmartArt','optPreAnalyze','optAdjacentContext'].forEach(id => { const el = document.getElementById(id); if (el) opts[id] = el.checked; }); localStorage.setItem('claude_cat_opts', JSON.stringify(opts)); },
+    swapLang() { const s = document.getElementById('sourceLang'), t = document.getElementById('targetLang'); if (s.value !== 'auto') { const sv = s.value; s.value = t.value; t.value = sv; } },
+    getLangCodeFromName(name) { return LANGS.find(l => l.name === name)?.code || null; },
+
+    // --- Glossary ---
+    loadGlossaryFromStorage() { try { this.glossaryItems = JSON.parse(localStorage.getItem('claude_cat_glossary') || '[]'); } catch (e) { console.warn('[Glossary] Corrupt stored glossary, using empty'); this.glossaryItems = []; } },
+    saveGlossaryToStorage() { localStorage.setItem('claude_cat_glossary', JSON.stringify(this.glossaryItems)); },
+    renderGlossary() { const list = document.getElementById('glossaryList'); if (this.glossaryItems.length === 0) { list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--kin); font-size:0.8rem;">尚無術語</div>'; return; } list.innerHTML = this.glossaryItems.map((t, i) => `<div class="glossary-item"><span>${escapeHTML(t.src)}</span><span>${escapeHTML(t.tgt)}</span><span>${escapeHTML(t.note||'')}</span><button class="glossary-del" onclick="ENGINE.removeGlossaryTerm(${i})">×</button></div>`).join(''); },
+    addGlossaryTerm() { const src = document.getElementById('termSrc').value.trim(), tgt = document.getElementById('termTgt').value.trim(), note = document.getElementById('termNote').value.trim(); if (!src || !tgt) return; this.glossaryItems.push({ src, tgt, note }); this.saveGlossaryToStorage(); this.renderGlossary(); document.getElementById('termSrc').value = ''; document.getElementById('termTgt').value = ''; document.getElementById('termNote').value = ''; },
+    removeGlossaryTerm(i) { this.glossaryItems.splice(i, 1); this.saveGlossaryToStorage(); this.renderGlossary(); },
+    clearGlossary() { if (!confirm('確定清空術語庫？')) return; this.glossaryItems = []; this.saveGlossaryToStorage(); this.renderGlossary(); },
+    importGlossary() { document.getElementById('glossaryFileInput').click(); },
+    handleGlossaryFile(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { ev.target.result.split('\n').forEach(line => { const parts = line.split('\t'); if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) this.glossaryItems.push({ src: parts[0].trim(), tgt: parts[1].trim(), note: parts[2]?.trim() || '' }); }); this.saveGlossaryToStorage(); this.renderGlossary(); showToast(`已匯入 ${this.glossaryItems.length} 筆術語`, 'success'); }; r.readAsText(f); },
+    exportGlossary() { if (this.glossaryItems.length === 0) return showToast('無術語可匯出', 'warn'); const tsv = this.glossaryItems.map(t => `${t.src}\t${t.tgt}\t${t.note||''}`).join('\n'); const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8' }); downloadBlob(blob, 'glossary.tsv'); },
+    getGlossaryPromptText() { if (this.glossaryItems.length === 0) return ''; return '[Glossary]\n' + this.glossaryItems.map(t => `${t.src} → ${t.tgt}`).join('\n') + '\n'; },
+    setPolishStyle(s) { this.polishStyle = s; document.querySelectorAll('.polish-style-btn').forEach(b => b.classList.toggle('active', b.dataset.style === s)); },
+
+    // --- Segment Management ---
+    addSegment(seg) { const id = this.segments.length; seg.id = id; this.segments.push(seg); this.segmentMap.set(id, seg); return seg; },
+    getSegmentById(id) { return this.segmentMap.get(id); },
+    stripTags(t) { return t ? t.replace(TAG_REGEX, '$2') : ''; },
+    extractTagIdSet(t) { const s = new Set(); let m; const r = /\{\{(\d+)\}\}/g; while ((m = r.exec(t)) !== null) s.add(parseInt(m[1])); return s; },
+    extractTagOrder(t) { if (!t) return []; const order = [], seen = new Set(); let m; const r = /\{\{(\d+)\}\}/g; while ((m = r.exec(t)) !== null) { const id = parseInt(m[1]); if (!seen.has(id)) { order.push(id); seen.add(id); } } return order; },
+    isCJKLanguage(langName) { return LANGS.find(l => l.name === langName)?.isCJK || false; },
+    cleanCJKSpaces(t) {
+        const cjk = '[\\u4e00-\\u9fff\\u3400-\\u4dbf\\u3040-\\u309f\\u30a0-\\u30ff\\uac00-\\ud7af]';
+        const punct = '[，。！？；：、「」『』（）【】《》〈〉]';
+        let prev;
+        do { prev = t; t = t.replace(new RegExp(`(${cjk})\\s+(${cjk})`, 'g'), '$1$2'); } while (t !== prev);
+        t = t.replace(new RegExp(`(${cjk}|${punct})\\s+(${punct})`, 'g'), '$1$2');
+        t = t.replace(new RegExp(`(${punct})\\s+(${cjk}|${punct})`, 'g'), '$1$2');
+        return t;
+    },
+    cleanWhitespace(t) {
+        if (!t) return t;
+        t = t.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+        t = t.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+        t = t.replace(/ {2,}/g, ' ');
+        return t;
+    },
+
+    // --- Run Style Extraction (v19.3: Extended properties for DrawingML and WordprocessingML) ---
+    extractRunStyle(rNode, ns) {
+        if (!rNode) return null;
+        const rPr = rNode.getElementsByTagNameNS(ns, 'rPr')[0];
+        if (!rPr) return null;
+        if (ns === NS.w) {
+            // v19.3: DOCX extraction with strike + baseline
+            const bEl = rPr.getElementsByTagNameNS(NS.w, 'b')[0];
+            const iEl = rPr.getElementsByTagNameNS(NS.w, 'i')[0];
+            const uEl = rPr.getElementsByTagNameNS(NS.w, 'u')[0];
+            const colorEl = rPr.getElementsByTagNameNS(NS.w, 'color')[0];
+            const szEl = rPr.getElementsByTagNameNS(NS.w, 'sz')[0];
+            const rFonts = rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0];
+            const isFalse = v => v === '0' || v === 'false';
+            const b = bEl ? !isFalse(bEl.getAttribute('w:val') || bEl.getAttributeNS(NS.w, 'val')) : false;
+            const i = iEl ? !isFalse(iEl.getAttribute('w:val') || iEl.getAttributeNS(NS.w, 'val')) : false;
+            let u = false;
+            if (uEl) { const uVal = uEl.getAttribute('w:val') || uEl.getAttributeNS(NS.w, 'val'); u = uVal && uVal !== 'none' ? uVal : false; }
+            let color = null;
+            if (colorEl) { const cv = colorEl.getAttribute('w:val') || colorEl.getAttributeNS(NS.w, 'val'); color = (cv && cv !== 'auto') ? safeHex6(cv) : null; }
+            let size = null;
+            if (szEl) { const sv = szEl.getAttribute('w:val') || szEl.getAttributeNS(NS.w, 'val'); if (sv) size = parseInt(sv) / 2; }
+            let font = null;
+            if (rFonts) { font = rFonts.getAttribute('w:eastAsia') || rFonts.getAttributeNS(NS.w, 'eastAsia') || rFonts.getAttribute('w:ascii') || rFonts.getAttributeNS(NS.w, 'ascii') || rFonts.getAttribute('w:hAnsi') || rFonts.getAttributeNS(NS.w, 'hAnsi') || rFonts.getAttribute('w:cs') || rFonts.getAttributeNS(NS.w, 'cs') || null; }
+            // v19.3: strike + baseline for DOCX
+            const strikeEl = rPr.getElementsByTagNameNS(NS.w, 'strike')[0];
+            const strike = strikeEl ? !isFalse(strikeEl.getAttribute('w:val') || strikeEl.getAttributeNS(NS.w, 'val') || '1') : false;
+            const vertAlignEl = rPr.getElementsByTagNameNS(NS.w, 'vertAlign')[0];
+            const vertAlign = vertAlignEl ? (vertAlignEl.getAttribute('w:val') || vertAlignEl.getAttributeNS(NS.w, 'val')) : null;
+            const baseline = vertAlign === 'superscript' ? 30000 : vertAlign === 'subscript' ? -25000 : null;
+            return { b, i, u: u || null, strike, color, size, font, baseline };
+        }
+        // DrawingML (PPTX) — v19.3: Extended 13-property extraction
+        const fill = rPr.getElementsByTagNameNS(ns, 'solidFill')?.[0];
+        const srgb = fill?.getElementsByTagNameNS(ns, 'srgbClr')?.[0];
+        const scheme = fill?.getElementsByTagNameNS(ns, 'schemeClr')?.[0];
+        const hlink = rPr.getElementsByTagNameNS(ns, 'hlinkClick')?.[0];
+        const effectLst = rPr.getElementsByTagNameNS(ns, 'effectLst')?.[0];
+        return {
+            b: rPr.getAttribute('b') === '1',
+            i: rPr.getAttribute('i') === '1',
+            u: (rPr.getAttribute('u') && rPr.getAttribute('u') !== 'none') ? rPr.getAttribute('u') : null,
+            strike: rPr.getAttribute('strike') || null,
+            color: srgb?.getAttribute('val') || null,
+            schemeColor: scheme?.getAttribute('val') || null,
+            size: rPr.getAttribute('sz') ? parseInt(rPr.getAttribute('sz')) / 100 : null,
+            font: rPr.getElementsByTagNameNS(ns, 'latin')?.[0]?.getAttribute('typeface') || rPr.getElementsByTagNameNS(ns, 'ea')?.[0]?.getAttribute('typeface') || null,
+            lang: rPr.getAttribute('lang') || null,
+            altLang: rPr.getAttribute('altLang') || null,
+            baseline: rPr.getAttribute('baseline') ? parseInt(rPr.getAttribute('baseline')) : null,
+            hasHyperlink: !!hlink,
+            hlinkRId: hlink?.getAttributeNS?.(NS.r, 'id') || hlink?.getAttribute('r:id') || null,
+            hasShadow: !!effectLst?.getElementsByTagNameNS(ns, 'outerShdw')?.[0]
+        };
+    },
+
+    // --- Relationship Map ---
+    async buildRelMap() {
+        for (let path of Object.keys(this.zip.files).filter(f => f.endsWith('.rels'))) {
+            const doc = safeParseXml(await this.zip.file(path).async('string'));
+            if (!doc) continue;
+            let owner = path.replace('_rels/', '').replace('.rels', '');
+            if (!this.relMap[owner]) this.relMap[owner] = {};
+            for (let r of doc.getElementsByTagName('Relationship')) this.relMap[owner][r.getAttribute('Id')] = r.getAttribute('Target');
+        }
+    },
+    normalizePath(basePath, target) {
+        if (!target) return null;
+        if (target.startsWith('ppt/') || target.startsWith('/ppt/') || target.startsWith('word/') || target.startsWith('/word/')) return target.replace(/^\//, '');
+        const baseDir = basePath.substring(0, basePath.lastIndexOf('/'));
+        let result = baseDir + '/' + target;
+        let prev;
+        do { prev = result; result = result.replace(/[^/]+\/\.\.\//g, ''); } while (result !== prev);
+        result = result.replace(/^(\.\.\/)+/, '').replace(/\.\//g, '').replace(/\/+/g, '/');
+        return result;
+    },
+
+    // --- Main Parse Entry ---
+    resetStats() {
+        this.stats = { totalSegments: 0, translatedSegments: 0, skippedSegments: 0, restoredTags: 0,
+            hopeStats: { safe: 0, shrink: 0, clip: 0 },
+            chartStats: { titles: 0, axes: 0, legends: 0, categories: 0, dataLabels: 0 },
+            smartartStats: { nodes: 0 },
+            sdtResidualCount: 0, sourceFallbackCount: 0,
+            translationErrors: [], errors: [] };
+    },
+    async loadAndParse() {
+        if (this._busy) { showToast('操作進行中，請稍候', 'warn'); return; }
+        const f = document.getElementById('fileInput').files[0];
+        if (!f) { showToast('請先選擇檔案', 'warn'); return; }
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+        if (f.size > MAX_FILE_SIZE) { showToast(`檔案過大 (${(f.size/1024/1024).toFixed(1)} MB)，上限 50 MB`, 'error'); return; }
+        this._busy = true;
+        this.originalFileName = f.name;
+        UI.showProgress(true, 10, 100, '讀取檔案...');
+        try {
+            this.segments = []; this.segmentMap.clear(); this.parsedDOMs = {}; this.relMap = {}; this.zip = null;
+            this.resetStats(); this.table.reset(); this.chart.reset(); this.docxTable.reset();
+            const ext = f.name.split('.').pop().toLowerCase();
+            this.fileType = ext;
+            if (['pptx', 'docx', 'xlsx'].includes(ext)) {
+                UI.showProgress(true, 20, 100, '解壓縮...');
+                this.zip = await JSZip.loadAsync(f);
+                UI.showProgress(true, 40, 100, '解析結構...');
+                if (ext === 'pptx') await this.parsePPTX();
+                else if (ext === 'docx') await this.parseDOCX();
+                else if (ext === 'xlsx') await this.parseXLSX();
+            } else if (ext === 'txt') {
+                await this.parseTXT(f);
+            } else { throw new Error('不支援的格式: ' + ext); }
+            if (document.getElementById('optSCR')?.checked && this.fileType === 'pptx') {
+                UI.showProgress(true, 90, 100, '語意重組中...');
+                this.segments = this.scr.reconstructContext(this.segments);
+            }
+            UI.showProgress(false); UI.render();
+            document.getElementById('btnTrans').disabled = false;
+            document.getElementById('btnPolish').disabled = false;
+            document.getElementById('btnDown').disabled = false;
+        } catch (e) { console.error(e); UI.showProgress(false); showToast('解析錯誤: ' + e.message, 'error', 5000); } finally { this._busy = false; }
+    },
+
+    // === PPTX Pipeline ===
+    async parsePPTX() {
+        await this.buildRelMap();
+        const iN = document.getElementById('optIncludeNotes').checked;
+        const iC = document.getElementById('optIncludeComments').checked;
+        const iM = document.getElementById('optIncludeMaster').checked;
+        const iChart = document.getElementById('optChart')?.checked !== false;
+        const iSmartArt = document.getElementById('optSmartArt')?.checked !== false;
+        const slideFiles = Object.keys(this.zip.files).filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a,b) => { const na = parseInt(a.match(/slide(\d+)/)[1]), nb = parseInt(b.match(/slide(\d+)/)[1]); return na - nb; });
+        for (const p of slideFiles) {
+            await this.parsePPTXFile(p, 'slide');
+            if (iChart) await this.chart.parseChartsForSlide(p);
+        }
+        if (iM) {
+            for (const p of Object.keys(this.zip.files).filter(f => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f))) await this.parsePPTXFile(p, 'layout');
+            for (const p of Object.keys(this.zip.files).filter(f => /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f))) await this.parsePPTXFile(p, 'master');
+        }
+        if (iN) { for (const p of Object.keys(this.zip.files).filter(f => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(f))) await this.parsePPTXNotes(p); }
+        if (iC) { for (const p of Object.keys(this.zip.files).filter(f => /^ppt\/comments\/comment\d+\.xml$/.test(f))) await this.parsePPTXComments(p); }
+        if (iSmartArt) await this.processPptxSmartArt();
+    },
+    async parsePPTXFile(path, ct) {
+        const f = this.zip.file(path); if (!f) return;
+        const doc = safeParseXml(await f.async('string'));
+        if (!doc) return;
+        this.parsedDOMs[path] = doc; this.currentParsingFile = path;
+        const m = path.match(/slide(\d+)\.xml$/i); this.currentSlideId = m ? `slide${m[1]}` : path;
+        this.visitNode(doc.documentElement, ct);
+        this.currentParsingFile = null; this.currentSlideId = null;
+    },
+    async parsePPTXNotes(path) {
+        const f = this.zip.file(path); if (!f) return;
+        const doc = safeParseXml(await f.async('string'));
+        if (!doc) return;
+        this.parsedDOMs[path] = doc; this.currentParsingFile = path;
+        const spTree = doc.getElementsByTagNameNS(NS.p, 'spTree')[0];
+        if (!spTree) { this.visitNode(doc.documentElement, 'notes'); this.currentParsingFile = null; return; }
+        for (let sp of spTree.getElementsByTagNameNS(NS.p, 'sp')) {
+            const nvPr = sp.getElementsByTagNameNS(NS.p, 'nvPr')[0], ph = nvPr?.getElementsByTagNameNS(NS.p, 'ph')[0];
+            if (ph && ['sldImg','sldNum','dt','hdr','ftr'].includes(ph.getAttribute('type'))) continue;
+            const txBody = sp.getElementsByTagNameNS(NS.p, 'txBody')[0] || sp.getElementsByTagNameNS(NS.a, 'txBody')[0];
+            if (txBody) this.extractTextBody(txBody, NS.a, 'notes');
+        }
+        this.currentParsingFile = null;
+    },
+    async parsePPTXComments(path) {
+        const doc = safeParseXml(await this.zip.file(path).async('string'));
+        if (!doc) return;
+        this.parsedDOMs[path] = doc;
+        for (let cm of doc.getElementsByTagNameNS(NS.p, 'cm')) {
+            const t = cm.getElementsByTagNameNS(NS.p, 'text')[0];
+            if (t?.textContent.trim()) this.addSegment({ source: `{{0}}${t.textContent}{{/0}}`, target: "", refs: [{ node: t, style: null, type: 'text' }], meta: { containerType: 'comment', file: path, role: 'comment' } });
+        }
+    },
+    async processPptxSmartArt() {
+        const files = Object.keys(this.zip.files).filter(n => /^ppt\/diagrams\/data\d*\.xml$/i.test(n));
+        const existing = new Set();
+        for (const fp of files) {
+            try {
+                const doc = safeParseXml(await this.zip.file(fp).async('string'));
+                if (!doc) continue;
+                this.parsedDOMs[fp] = doc;
+                let i = 0;
+                for (let pt of doc.getElementsByTagNameNS(NS.dgm, 'pt')) {
+                    if (['doc','parTrans','sibTrans','pres'].includes(pt.getAttribute('type'))) { i++; continue; }
+                    const prSet = getEls(pt, NS.dgm, 'prSet', 'dgm')[0];
+                    if (prSet && prSet.getAttribute('phldr') === '1') { i++; continue; }
+                    let fullText = "", refs = [];
+                    for (let t of pt.getElementsByTagNameNS(NS.a, 't')) {
+                        if (t.textContent.length > 0) { fullText += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`; refs.push({ node: t, style: this.extractRunStyle(t.parentNode, NS.a), type: 'text' }); }
+                    }
+                    const key = `${fp}:${i}:${fullText}`;
+                    if (fullText && !existing.has(key)) {
+                        this.addSegment({ source: fullText, target: "", refs, meta: { containerType: 'smartart', file: fp, ptIndex: i, role: 'smartartNode' } });
+                        existing.add(key); this.stats.smartartStats.nodes++;
+                    }
+                    i++;
+                }
+            } catch (e) { console.error('[SmartArt]', fp, e); this.stats.errors.push({ type: 'smartart', path: fp, error: e.message }); }
+        }
+    },
+    visitNode(node, ct = 'slide', parentOff = { x: 0, y: 0 }) {
+        if (node.nodeType !== 1) return;
+        // MC AlternateContent: prefer Choice branch, fallback to Fallback
+        if (node.localName === 'AlternateContent') {
+            const choice = Array.from(node.children).find(c => c.localName === 'Choice');
+            const fallback = Array.from(node.children).find(c => c.localName === 'Fallback');
+            const branch = choice || fallback;
+            if (branch) { for (let c of branch.children) this.visitNode(c, ct, parentOff); }
+            return;
+        }
+        if (node.localName === 'graphicFrame') {
+            const pos = this.extractPosition(node, NS.p, parentOff); this.currentShapePosition = pos;
+            const tbl = node.getElementsByTagNameNS(NS.a, 'tbl')[0];
+            if (tbl) {
+                if (document.getElementById('optTableVGM')?.checked !== false) this.table.parseTableElement(tbl, ct, this.currentParsingFile);
+                else this.genericTraversal(tbl, ct);
+                this.currentShapePosition = null; return;
+            }
+        }
+        if (node.localName === 'sp') {
+            const pos = this.extractPosition(node, NS.p, parentOff); this.currentShapePosition = pos;
+            const nvPr = node.getElementsByTagNameNS(NS.p, 'nvPr')[0], ph = nvPr?.getElementsByTagNameNS(NS.p, 'ph')[0];
+            this.currentPhType = ph?.getAttribute('type');
+            const cNvPr = node.getElementsByTagNameNS(NS.p, 'cNvPr')[0];
+            let grpParent = node.parentNode;
+            while (grpParent && grpParent.localName !== 'grpSp') grpParent = grpParent.parentNode;
+            if (grpParent) { const gId = grpParent.getElementsByTagNameNS(NS.p, 'cNvPr')[0]?.getAttribute('id'); if (gId) this.currentGrpSpId = `grp_${gId}`; }
+        }
+        if (node.localName === 'grpSp') { const off = this.extractPosition(node, NS.p, parentOff); for (let c of node.children) this.visitNode(c, ct, off); return; }
+        // v19.3: Connector shapes (cxnSp) can contain text
+        if (node.localName === 'cxnSp') {
+            const txBody = node.getElementsByTagNameNS(NS.a, 'txBody')[0];
+            if (txBody) this.extractTextBody(txBody, NS.a, ct);
+            return;
+        }
+        if (node.localName === 'txBody') { this.extractTextBody(node, NS.a, ct); return; }
+        for (let c of node.children) this.visitNode(c, ct, parentOff);
+        if (node.localName === 'sp') { this.currentShapePosition = null; this.currentPhType = null; this.currentGrpSpId = null; }
+    },
+    extractPosition(node, ns, parentOff = { x: 0, y: 0 }) {
+        const xfrm = node.getElementsByTagNameNS?.(ns, 'xfrm')?.[0] || node.getElementsByTagNameNS?.(NS.a, 'xfrm')?.[0];
+        const off = xfrm?.getElementsByTagNameNS?.(NS.a, 'off')?.[0], ext = xfrm?.getElementsByTagNameNS?.(NS.a, 'ext')?.[0];
+        return { x: parseInt(off?.getAttribute('x') || '0') + (parentOff.x || 0), y: parseInt(off?.getAttribute('y') || '0') + (parentOff.y || 0), width: parseInt(ext?.getAttribute('cx') || '0'), height: parseInt(ext?.getAttribute('cy') || '0') };
+    },
+    extractTextBody(txBody, ns, ct) {
+        for (let p of txBody.getElementsByTagNameNS(ns, 'p')) {
+            let text = "", refs = [];
+            const collectRuns = (parent) => {
+                for (let c of parent.childNodes) {
+                    if (c.nodeType !== 1) continue;
+                    if (c.localName === 'r') {
+                        const t = c.getElementsByTagNameNS(ns, 't')[0];
+                        if (t?.textContent.length > 0) { text += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`; refs.push({ node: t, style: this.extractRunStyle(c, ns), type: 'text' }); }
+                    } else if (c.localName === 'fld') {
+                        // Auto-fields (slidenum, datetime, etc.) — skip from translatable source.
+                    } else if (c.localName === 'br') {
+                        text += '\n';
+                    } else if (c.localName === 'AlternateContent') {
+                        const choice = Array.from(c.children).find(x => x.localName === 'Choice');
+                        const fallback = Array.from(c.children).find(x => x.localName === 'Fallback');
+                        if (choice) collectRuns(choice); else if (fallback) collectRuns(fallback);
+                    } else if (c.localName !== 'pPr' && c.localName !== 'endParaRPr') {
+                        collectRuns(c);
+                    }
+                }
+            };
+            collectRuns(p);
+            if (refs.length === 0) continue;
+            // Fragment detection for PPTX
+            const doMerge = document.getElementById('optMergeFragments')?.checked;
+            const textRuns = refs.filter(r => r.type === 'text');
+            const avgLen = textRuns.length > 0 ? textRuns.reduce((sum, r) => sum + (r.node?.textContent?.length || 0), 0) / textRuns.length : 999;
+            const fragmented = textRuns.length >= 5 && avgLen < 2;
+            let meta = { containerType: ct, file: this.currentParsingFile, slideId: this.currentSlideId, position: this.currentShapePosition, phType: this.currentPhType, grpSpId: this.currentGrpSpId };
+            if (fragmented) meta.fragmented = true;
+            if (fragmented && doMerge && textRuns.length >= 2) {
+                const merged = this.mergeFragmentRuns(refs, text);
+                text = merged.text; refs = merged.refs;
+                if (merged.didMerge) meta.didMerge = true;
+            }
+            this.addSegment({ source: text, target: "", refs, meta });
+        }
+    },
+    // Fragment merging (shared by PPTX and DOCX)
+    // v19.3: Extended fingerprint with strike, schemeColor, hyperlink, shadow, lang
+    getStyleFingerprint(style, aggressive) {
+        if (!style) return 'none';
+        const b = style.b ? 'B' : '', i = style.i ? 'I' : '', u = style.u || '';
+        const strike = style.strike ? 'S' : '';
+        const color = aggressive ? '' : (style.color || '');
+        const scheme = aggressive ? '' : (style.schemeColor || '');
+        const font = style.font || '';
+        const sizeBucket = style.size ? (aggressive ? Math.round(style.size / 100) * 100 : Math.round(style.size / 10) * 10) : '';
+        const hlink = style.hasHyperlink ? 'H' : '';
+        const shadow = style.hasShadow ? 'SH' : '';
+        // #007: lang removed from fingerprint — lang switches (e.g. ja/en mixed text)
+        // only affect spell-check, not visual appearance; including lang prevented
+        // fragment merge of visually identical runs like "第5回CN推進本部"
+        return `${b}|${i}|${u}|${strike}|${color}|${scheme}|${font}|${sizeBucket}|${hlink}|${shadow}`;
+    },
+    mergeFragmentRuns(refs, text) {
+        const textRefs = refs.map((r, idx) => ({ ref: r, idx, fp: this.getStyleFingerprint(r.style, false) })).filter(r => r.ref.type === 'text');
+        // Group consecutive runs by fingerprint
+        const groups = []; let cur = null;
+        for (const item of textRefs) {
+            if (cur && cur.fp === item.fp && item.idx === cur.items[cur.items.length - 1].idx + 1) { cur.items.push(item); }
+            else { if (cur) groups.push(cur); cur = { fp: item.fp, items: [item] }; }
+        }
+        if (cur) groups.push(cur);
+        // Check if we need aggressive mode
+        if (groups.length > textRefs.length * 0.7 && textRefs.length >= 5) {
+            const aggroRefs = refs.map((r, idx) => ({ ref: r, idx, fp: this.getStyleFingerprint(r.style, true) })).filter(r => r.ref.type === 'text');
+            const aggroGroups = []; let ac = null;
+            for (const item of aggroRefs) {
+                if (ac && ac.fp === item.fp && item.idx === ac.items[ac.items.length - 1].idx + 1) { ac.items.push(item); }
+                else { if (ac) aggroGroups.push(ac); ac = { fp: item.fp, items: [item] }; }
+            }
+            if (ac) aggroGroups.push(ac);
+            if (aggroGroups.length < groups.length) { return this._buildMergedResult(refs, aggroGroups, text); }
+        }
+        return this._buildMergedResult(refs, groups, text);
+    },
+    _buildMergedResult(origRefs, groups, origText) {
+        let didMerge = false;
+        const newRefs = []; const nonTextRefs = origRefs.filter(r => r.type !== 'text');
+        // Add non-text refs first (fields, symbols)
+        for (const r of nonTextRefs) newRefs.push(r);
+        for (const g of groups) {
+            if (g.items.length === 1) { newRefs.push(g.items[0].ref); continue; }
+            didMerge = true;
+            const primaryRef = g.items[0].ref;
+            const mergedText = g.items.map(it => it.ref.node.textContent).join('');
+            const nodes = g.items.map(it => it.ref.node);
+            const nodeOriginals = g.items.map(it => it.ref.node.textContent);
+            newRefs.push({ node: nodes[0], nodes, nodeOriginals, style: primaryRef.style, type: 'text', merged: true });
+        }
+        // Rebuild text with new tag indices
+        let newText = '';
+        for (let i = 0; i < newRefs.length; i++) {
+            const r = newRefs[i];
+            if (r.merged) { newText += `{{${i}}}${r.nodes.map(n => n.textContent).join('')}{{/${i}}}`; }
+            else if (r.node) { newText += `{{${i}}}${r.node.textContent}{{/${i}}}`; }
+        }
+        return { text: newText, refs: newRefs, didMerge };
+    },
+    genericTraversal(node, ct) {
+        for (let t of node.getElementsByTagNameNS(NS.a, 't')) {
+            if (t.textContent.trim()) this.addSegment({ source: `{{0}}${t.textContent}{{/0}}`, target: "", refs: [{ node: t, style: this.extractRunStyle(t.parentNode, NS.a), type: 'text' }], meta: { containerType: ct, file: this.currentParsingFile } });
+        }
+    },
+
+    // === XLSX Pipeline ===
+    async parseXLSX() {
+        await this.parseXLSXSharedStrings();
+        await this.parseXLSXInlineStrings();
+        await this.parseXLSXDrawings();
+    },
+    async parseXLSXSharedStrings() {
+        const path = 'xl/sharedStrings.xml'; if (!this.zip.file(path)) return;
+        const doc = safeParseXml(await this.zip.file(path).async('string'));
+        if (!doc) return;
+        this.parsedDOMs[path] = doc;
+        for (let si of doc.getElementsByTagName('si')) {
+            let fullText = '', refs = [];
+            for (let t of si.getElementsByTagName('t')) { if (t.textContent.length > 0) { fullText += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`; refs.push({ node: t, type: 'text' }); } }
+            if (fullText) this.addSegment({ source: fullText, target: "", refs, meta: { containerType: 'xlsx' } });
+        }
+    },
+    async parseXLSXInlineStrings() {
+        const sheets = Object.keys(this.zip.files).filter(f => /^xl\/worksheets\/sheet\d+\.xml$/.test(f));
+        for (const sp of sheets) {
+            const doc = safeParseXml(await this.zip.file(sp).async('string'));
+            if (!doc) continue;
+            this.parsedDOMs[sp] = doc;
+            for (let c of doc.getElementsByTagName('c')) {
+                if (c.getAttribute('t') !== 'inlineStr') continue;
+                const is = c.getElementsByTagName('is')[0]; if (!is) continue;
+                for (let t of is.getElementsByTagName('t')) {
+                    if (t.textContent.trim()) this.addSegment({ source: `{{0}}${t.textContent}{{/0}}`, target: "", refs: [{ node: t, type: 'text' }], meta: { containerType: 'xlsx-inline', file: sp } });
+                }
+            }
+        }
+    },
+    async parseXLSXDrawings() {
+        const drawFiles = Object.keys(this.zip.files).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+        for (const dp of drawFiles) {
+            try {
+                const doc = safeParseXml(await this.zip.file(dp).async('string'));
+                if (!doc) continue;
+                this.parsedDOMs[dp] = doc;
+                for (let t of doc.getElementsByTagNameNS(NS.a, 't')) {
+                    if (t.textContent.trim()) this.addSegment({ source: `{{0}}${t.textContent}{{/0}}`, target: "", refs: [{ node: t, style: this.extractRunStyle(t.parentNode, NS.a), type: 'text' }], meta: { containerType: 'xlsx-drawing', file: dp } });
+                }
+            } catch (e) { console.warn('[XLSX Drawing]', dp, e); }
+        }
+    },
+
+    // === TXT Pipeline ===
+    async parseTXT(f) { (await f.text()).split('\n').forEach(l => { if (l.trim()) this.addSegment({ source: l.trim(), target: '', refs: null }); }); },
+
+    // ============================================================
+    // DOCX Pipeline (v19.2 Improved Edition)
+    // ============================================================
+
+    // --- SDT Three-Layer Defense ---
+    sanitizeSDTBindings(doc) {
+        // Layer 1: Remove w:dataBinding — prevents Word from re-fetching bound data
+        const bindings = doc.getElementsByTagNameNS(NS.w, 'dataBinding');
+        for (let i = bindings.length - 1; i >= 0; i--) bindings[i].parentNode.removeChild(bindings[i]);
+        // Remove w:showingPlcHdr — prevents Word from showing placeholder text
+        const plcHdrs = doc.getElementsByTagNameNS(NS.w, 'showingPlcHdr');
+        for (let i = plcHdrs.length - 1; i >= 0; i--) plcHdrs[i].parentNode.removeChild(plcHdrs[i]);
+        // Belt-and-suspenders: remove from sdtPr containers
+        const sdtPrs = doc.getElementsByTagNameNS(NS.w, 'sdtPr');
+        for (let sdtPr of sdtPrs) {
+            const nested = sdtPr.getElementsByTagNameNS(NS.w, 'showingPlcHdr');
+            for (let i = nested.length - 1; i >= 0; i--) nested[i].parentNode.removeChild(nested[i]);
+        }
+    },
+
+    // --- DOCX Main Parser ---
+    async parseDOCX() {
+        const iC = document.getElementById('optIncludeComments').checked;
+        const iChart = document.getElementById('optChart')?.checked !== false;
+        const iSmartArt = document.getElementById('optSmartArt')?.checked !== false;
+
+        // Step 1: document.xml
+        await this.parseDOCXFile('word/document.xml', 'docx');
+        // Step 2: Textboxes (handled inside parseDOCXFile)
+        // Step 3: Headers
+        for (const p of Object.keys(this.zip.files).filter(f => /^word\/header\d+\.xml$/.test(f))) await this.parseDOCXFile(p, 'header');
+        // Step 4: Footers
+        for (const p of Object.keys(this.zip.files).filter(f => /^word\/footer\d+\.xml$/.test(f))) await this.parseDOCXFile(p, 'footer');
+        // Step 5: Footnotes
+        if (this.zip.file('word/footnotes.xml')) await this.parseDOCXFile('word/footnotes.xml', 'footnote');
+        // Step 6: Endnotes
+        if (this.zip.file('word/endnotes.xml')) await this.parseDOCXFile('word/endnotes.xml', 'endnote');
+        // Step 7: Comments
+        if (iC && this.zip.file('word/comments.xml')) await this.parseDOCXComments('word/comments.xml');
+        // Step 8: DOCX SmartArt
+        if (iSmartArt) await this.parseDocxSmartArt();
+        // Step 9: DOCX Charts
+        if (iChart) await this.parseDocxCharts();
+    },
+
+    async parseDOCXFile(path, ct) {
+        if (!this.zip.file(path)) return;
+        const doc = safeParseXml(await this.zip.file(path).async('string'));
+        if (!doc) return;
+        // SDT Layer 1: Sanitize immediately after parsing
+        this.sanitizeSDTBindings(doc);
+        this.parsedDOMs[path] = doc;
+        this.currentParsingFile = path;
+
+        const useVGM = document.getElementById('optTableVGM')?.checked !== false;
+
+        // v19.1: Helper to check if a paragraph is inside a w:tbl
+        const isInsideTable = (pNode) => {
+            let parent = pNode.parentNode;
+            while (parent) {
+                if (parent.localName === 'tbl' && parent.namespaceURI === NS.w) return true;
+                if (parent.localName === 'txbxContent') return false; // Don't escape textbox boundary
+                parent = parent.parentNode;
+            }
+            return false;
+        };
+
+        // v19.1: Parse top-level tables with VGM first
+        if (useVGM) {
+            const body = doc.getElementsByTagNameNS(NS.w, 'body')[0] || doc.documentElement;
+            // Find top-level w:tbl elements via recursive DFS (handles arbitrarily nested SDT wrappers)
+            const findTopLevelTables = (parent) => {
+                const tables = [];
+                for (let child = parent.firstElementChild; child; child = child.nextElementSibling) {
+                    if (child.localName === 'tbl' && child.namespaceURI === NS.w) {
+                        tables.push(child);
+                    } else {
+                        // Recurse into non-table structures (SDT blocks, sdtContent, etc.)
+                        tables.push(...findTopLevelTables(child));
+                    }
+                }
+                return tables;
+            };
+            const tables = findTopLevelTables(body);
+            for (const tbl of tables) {
+                this.docxTable.parseDocxTable(tbl, 'table', path);
+            }
+        }
+
+        // Walk all w:p paragraphs (skip those inside tables when VGM is active)
+        for (let p of doc.getElementsByTagNameNS(NS.w, 'p')) {
+            if (useVGM && isInsideTable(p)) continue; // Avoid double-extraction
+            // Skip paragraphs inside textboxes (handled separately below)
+            let inTextbox = false;
+            let par = p.parentNode;
+            while (par) { if (par.localName === 'txbxContent') { inTextbox = true; break; } par = par.parentNode; }
+            if (inTextbox) continue;
+            this.walkDocxParagraph(p, ct);
+        }
+        // Step 2: Parse textbox content
+        for (let txbx of doc.getElementsByTagNameNS(NS.w, 'txbxContent')) {
+            for (let p of txbx.getElementsByTagNameNS(NS.w, 'p')) {
+                this.walkDocxParagraph(p, 'textbox');
+            }
+        }
+        this.currentParsingFile = null;
+    },
+
+    async parseDOCXComments(path) {
+        const doc = safeParseXml(await this.zip.file(path).async('string'));
+        if (!doc) return;
+        this.sanitizeSDTBindings(doc);
+        this.parsedDOMs[path] = doc;
+        this.currentParsingFile = path;
+        for (let cm of doc.getElementsByTagNameNS(NS.w, 'comment')) {
+            for (let p of cm.getElementsByTagNameNS(NS.w, 'p')) {
+                this.walkDocxParagraph(p, 'comment');
+            }
+        }
+        this.currentParsingFile = null;
+    },
+
+    // --- v19.1: walkDocxParagraph with fragment detection + table metadata ---
+    walkDocxParagraph(pNode, ct, tableMeta) {
+        let text = '', refs = [];
+        const doClean = document.getElementById('optCleanWhitespace')?.checked;
+
+        const collectFromNode = (node) => {
+            for (let c of node.childNodes) {
+                // Skip tracked changes deletions
+                if (c.localName === 'del') continue;
+                // Skip field codes
+                if (c.localName === 'instrText') continue;
+                // v19.3: Skip simple fields (page numbers, TOC, etc.)
+                if (c.localName === 'fldSimple') continue;
+                // v19.3: Handle Ruby (振り仮名/注音) — only translate base text
+                if (c.localName === 'ruby') {
+                    const base = c.getElementsByTagNameNS(NS.w, 'rubyBase')[0];
+                    if (base) collectFromNode(base);
+                    continue;
+                }
+                // MC AlternateContent: prefer Choice branch
+                if (c.localName === 'AlternateContent') {
+                    const choice = Array.from(c.children).find(x => x.localName === 'Choice');
+                    const fallback = Array.from(c.children).find(x => x.localName === 'Fallback');
+                    const branch = choice || fallback;
+                    if (branch) collectFromNode(branch);
+                    continue;
+                }
+                // Recurse into hyperlinks
+                if (c.localName === 'hyperlink') { collectFromNode(c); continue; }
+                // Recurse into SDT content
+                if (c.localName === 'sdt') {
+                    const content = c.getElementsByTagNameNS(NS.w, 'sdtContent')[0];
+                    if (content) collectFromNode(content);
+                    continue;
+                }
+                if (c.localName === 'r') {
+                    // Check for special elements inside the run
+                    let hasSpecial = false;
+                    for (let rc of c.childNodes) {
+                        if (rc.localName === 'tab') { text += `{{${refs.length}}}\t{{/${refs.length}}}`; refs.push({ node: rc, style: null, type: 'symbol' }); hasSpecial = true; }
+                        else if (rc.localName === 'br' || rc.localName === 'cr') { text += `{{${refs.length}}}\n{{/${refs.length}}}`; refs.push({ node: rc, style: null, type: 'symbol' }); hasSpecial = true; }
+                        else if (rc.localName === 'instrText') continue;
+                    }
+                    const t = c.getElementsByTagNameNS(NS.w, 't')[0];
+                    if (t && t.textContent.length > 0) {
+                        let content = t.textContent;
+                        if (doClean) content = this.cleanWhitespace(content);
+                        text += `{{${refs.length}}}${content}{{/${refs.length}}}`;
+                        refs.push({ node: t, style: this.extractRunStyle(c, NS.w), type: 'text' });
+                    }
+                }
+            }
+        };
+        collectFromNode(pNode);
+        if (refs.length === 0) return;
+
+        // Fragment detection
+        const doMerge = document.getElementById('optMergeFragments')?.checked;
+        const textRuns = refs.filter(r => r.type === 'text');
+        const avgLen = textRuns.length > 0 ? textRuns.reduce((sum, r) => sum + (r.node?.textContent?.length || 0), 0) / textRuns.length : 999;
+        const fragmented = textRuns.length >= 5 && avgLen < 2;
+
+        let meta = { containerType: ct, file: this.currentParsingFile };
+        // v19.1: Attach table metadata from DOCX VGM
+        if (tableMeta) {
+            meta.tableId = tableMeta.tableId;
+            meta.row = tableMeta.row;
+            meta.col = tableMeta.col;
+            meta.paraIdx = tableMeta.paraIdx;
+            meta.gridSpan = tableMeta.gridSpan;
+            meta.rowSpan = tableMeta.rowSpan;
+            meta.cellWidth = tableMeta.cellWidth;
+            meta.cellHeight = tableMeta.cellHeight;
+            meta.margins = tableMeta.margins;
+            meta.isHeader = tableMeta.isHeader;
+            meta.cellKey = tableMeta.cellKey;
+            meta.tcNode = tableMeta.tcNode;
+            meta.role = tableMeta.isHeader ? 'tableHeader' : 'tableCell';
+        }
+        if (fragmented) meta.fragmented = true;
+
+        if (fragmented && doMerge && textRuns.length >= 2) {
+            const merged = this.mergeFragmentRuns(refs, text);
+            text = merged.text; refs = merged.refs;
+            if (merged.didMerge) meta.didMerge = true;
+        }
+
+        this.addSegment({ source: text, target: "", refs, meta });
+    },
+
+    // --- v19.1: DOCX SmartArt Parser ---
+    async parseDocxSmartArt() {
+        const files = Object.keys(this.zip.files).filter(n => /^word\/diagrams\/data\d*\.xml$/.test(n));
+        const existing = new Set();
+        for (const fp of files) {
+            try {
+                const doc = safeParseXml(await this.zip.file(fp).async('string'));
+                if (!doc) continue;
+                this.parsedDOMs[fp] = doc;
+                let i = 0;
+                for (let pt of doc.getElementsByTagNameNS(NS.dgm, 'pt')) {
+                    if (['doc','parTrans','sibTrans','pres'].includes(pt.getAttribute('type'))) { i++; continue; }
+                    const prSet = getEls(pt, NS.dgm, 'prSet', 'dgm')[0];
+                    if (prSet && prSet.getAttribute('phldr') === '1') { i++; continue; }
+                    let fullText = "", refs = [];
+                    for (let t of pt.getElementsByTagNameNS(NS.a, 't')) {
+                        if (t.textContent.length > 0) {
+                            fullText += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`;
+                            refs.push({ node: t, style: this.extractRunStyle(t.parentNode, NS.a), type: 'text' });
+                        }
+                    }
+                    const key = `${fp}:${i}:${fullText}`;
+                    if (fullText && !existing.has(key)) {
+                        this.addSegment({ source: fullText, target: "", refs, meta: { containerType: 'docx-smartart', file: fp, ptIndex: i, role: 'smartartNode' } });
+                        existing.add(key); this.stats.smartartStats.nodes++;
+                    }
+                    i++;
+                }
+            } catch (e) {
+                console.error('[DOCX SmartArt]', fp, e);
+                this.stats.errors.push({ type: 'docx-smartart', path: fp, error: e.message });
+            }
+        }
+    },
+
+    // --- v19.1: DOCX Chart Parser ---
+    docxChartCounter: 0,
+    async parseDocxCharts() {
+        const chartFiles = Object.keys(this.zip.files).filter(n => /^word\/charts\/chart\d*\.xml$/.test(n));
+        this.docxChartCounter = 0;
+        for (const cp of chartFiles) {
+            try {
+                const doc = safeParseXml(await this.zip.file(cp).async('string'));
+                if (!doc) continue;
+                this.parsedDOMs[cp] = doc;
+                const chartId = `docx_chart_${this.docxChartCounter++}`;
+                const baseMeta = { containerType: 'docx-chart', file: cp, chartId };
+
+                // Chart title
+                const titles = doc.getElementsByTagNameNS(NS.c, 'title');
+                for (let title of titles) {
+                    if (title.parentNode?.localName !== 'chart') continue;
+                    const rich = title.getElementsByTagNameNS(NS.c, 'rich')[0];
+                    if (rich) this._parseChartRichText(rich, { ...baseMeta, role: 'chartTitle' });
+                }
+
+                // Axis titles
+                for (let axType of ['catAx', 'valAx', 'serAx', 'dateAx']) {
+                    for (let axis of doc.getElementsByTagNameNS(NS.c, axType)) {
+                        const atitle = axis.getElementsByTagNameNS(NS.c, 'title')[0];
+                        if (!atitle) continue;
+                        const rich = atitle.getElementsByTagNameNS(NS.c, 'rich')[0];
+                        if (rich) this._parseChartRichText(rich, { ...baseMeta, role: 'axisTitle', axisType: axType });
+                    }
+                }
+
+                // Series / Legend names
+                for (let ser of doc.getElementsByTagNameNS(NS.c, 'ser')) {
+                    const tx = ser.getElementsByTagNameNS(NS.c, 'tx')[0];
+                    if (!tx) continue;
+                    // Try rich text first
+                    const rich = tx.getElementsByTagNameNS(NS.c, 'rich')[0];
+                    if (rich) { this._parseChartRichText(rich, { ...baseMeta, role: 'legendLabel' }); continue; }
+                    // Try strCache
+                    const strCache = tx.getElementsByTagNameNS(NS.c, 'strCache')[0];
+                    if (strCache) {
+                        for (let pt of strCache.getElementsByTagNameNS(NS.c, 'pt')) {
+                            const v = pt.getElementsByTagNameNS(NS.c, 'v')[0];
+                            if (v?.textContent.trim() && !NUMERIC_RE.test(v.textContent.trim())) {
+                                this.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'legendLabel' } });
+                                this.stats.chartStats.legends++;
+                            }
+                        }
+                    } else {
+                        const v = tx.getElementsByTagNameNS(NS.c, 'v')[0];
+                        if (v?.textContent.trim() && !NUMERIC_RE.test(v.textContent.trim())) {
+                            this.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'legendLabel' } });
+                            this.stats.chartStats.legends++;
+                        }
+                    }
+                }
+
+                // Category labels (deduplicated per chart)
+                const processedCats = new Set();
+                for (let ser of doc.getElementsByTagNameNS(NS.c, 'ser')) {
+                    const cat = ser.getElementsByTagNameNS(NS.c, 'cat')[0];
+                    if (!cat) continue;
+                    const strCache = cat.getElementsByTagNameNS(NS.c, 'strCache')[0];
+                    if (!strCache) continue;
+                    for (let pt of strCache.getElementsByTagNameNS(NS.c, 'pt')) {
+                        const v = pt.getElementsByTagNameNS(NS.c, 'v')[0];
+                        if (!v?.textContent.trim() || NUMERIC_RE.test(v.textContent.trim())) continue;
+                        const key = `${chartId}|cat|${v.textContent}`;
+                        if (processedCats.has(key)) continue;
+                        processedCats.add(key);
+                        this.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'categoryLabel' } });
+                        this.stats.chartStats.categories++;
+                    }
+                }
+
+                // Data labels (v19.1)
+                for (let dLbls of doc.getElementsByTagNameNS(NS.c, 'dLbls')) {
+                    for (let dLbl of dLbls.getElementsByTagNameNS(NS.c, 'dLbl')) {
+                        const tx = dLbl.getElementsByTagNameNS(NS.c, 'tx')[0];
+                        if (!tx) continue;
+                        const rich = tx.getElementsByTagNameNS(NS.c, 'rich')[0];
+                        if (rich) {
+                            this._parseChartRichText(rich, { ...baseMeta, role: 'dataLabel' });
+                            this.stats.chartStats.dataLabels++;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[DOCX Chart]', cp, e);
+                this.stats.errors.push({ type: 'docx-chart', path: cp, error: e.message });
+            }
+        }
+    },
+
+    // v19.3: Shared chart rich text parser — now handles <a:br> line breaks
+    _parseChartRichText(richNode, meta) {
+        let text = '', refs = [];
+        for (let p of richNode.getElementsByTagNameNS(NS.a, 'p')) {
+            for (let child of p.childNodes) {
+                if (child.localName === 'r') {
+                    const t = child.getElementsByTagNameNS(NS.a, 't')[0];
+                    if (t?.textContent.trim() && !NUMERIC_RE.test(t.textContent.trim())) {
+                        text += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`;
+                        refs.push({ node: t, style: this.extractRunStyle(child, NS.a), type: 'text' });
+                    }
+                } else if (child.localName === 'br') {
+                    text += `{{${refs.length}}}\n{{/${refs.length}}}`;
+                    refs.push({ node: child, style: null, type: 'symbol' });
+                }
+            }
+        }
+        if (refs.length > 0) {
+            this.addSegment({ source: text, target: "", refs, meta });
+            if (meta.role === 'chartTitle') this.stats.chartStats.titles++;
+            else if (meta.role === 'axisTitle') this.stats.chartStats.axes++;
+            else if (meta.role === 'legendLabel') this.stats.chartStats.legends++;
+        }
+    },
+
+    // ============================================================
+    // Translation Engine
+    // ============================================================
+    deduplicateSegments(segs) {
+        const map = new Map();
+        segs.forEach(s => {
+            const ct = s.meta?.containerType || '';
+            const role = s.meta?.role || '';
+            const key = `${ct}|${role}|${this.stripTags(s.source).trim()}`;
+            if (!map.has(key)) map.set(key, { representative: s, duplicates: [] });
+            else map.get(key).duplicates.push(s);
+        });
+        return map;
+    },
+    applyToDuplicates(uMap) { for (const [, g] of uMap) { if (g.representative.target) g.duplicates.forEach(d => { d.target = g.representative.target; }); } },
+    async tmPrefetch(todos, srcC, tgtC) {
+        const keys = todos.map(s => ({ key: TM.makeKey(s.source, srcC, tgtC), seg: s }));
+        const { hits: hitMap, misses: missKeys } = await TM.batchGet(keys.map(k => ({ key: k.key })));
+        const hits = [], misses = [];
+        for (const k of keys) {
+            const cached = hitMap.get(k.key);
+            if (cached) { k.seg.target = cached; hits.push(k.seg); }
+            else misses.push(k.seg);
+        }
+        return { hits, misses };
+    },
+    prepareDynamicBatches(segs, mode, maxBatch = 30, maxTokens = 6000) {
+        if (document.getElementById('optSCR')?.checked && mode === 'translate' && this.fileType === 'pptx') {
+            const byGroup = new Map();
+            segs.forEach(s => { const g = s.meta?.groupId || `orphan_${s.id}`; if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(s); });
+            const batches = []; let curBatch = [], curTokens = 0;
+            for (const [, gSegs] of byGroup) {
+                const gText = gSegs.map(s => s.source).join('');
+                const hasCJK = /[\u4e00-\u9fff]/.test(gText);
+                const gTokens = Math.ceil(gText.length / (hasCJK ? 2 : 4));
+                if (curBatch.length > 0 && (curBatch.length + gSegs.length > maxBatch || curTokens + gTokens > maxTokens)) {
+                    batches.push(curBatch); curBatch = []; curTokens = 0;
+                }
+                curBatch.push(...gSegs); curTokens += gTokens;
+            }
+            if (curBatch.length > 0) batches.push(curBatch);
+            return batches;
+        }
+        const batches = []; let curBatch = [], curTokens = 0;
+        for (const s of segs) {
+            const t = mode === 'polish' ? ((s.source||'') + (s.target||'')) : (s.source||'');
+            const hasCJK = /[\u4e00-\u9fff]/.test(t);
+            const est = Math.ceil(t.length / (hasCJK ? 2 : 4));
+            if (curBatch.length >= maxBatch || (curTokens + est > maxTokens && curBatch.length >= 5)) {
+                batches.push(curBatch); curBatch = []; curTokens = 0;
+            }
+            curBatch.push(s); curTokens += est;
+        }
+        if (curBatch.length > 0) batches.push(curBatch);
+        return batches;
+    },
+    validateBatchResponse(mode, batch, dataRes) {
+        if (!Array.isArray(dataRes)) return { ok: false, reason: 'Not array' };
+        if (dataRes.length !== batch.length) return { ok: false, reason: `Count mismatch: ${dataRes.length} vs ${batch.length}` };
+        const resMap = new Map();
+        for (const item of dataRes) {
+            if (!item || typeof item.id !== 'number' || typeof item.target !== 'string') return { ok: false, reason: 'Bad item' };
+            if (resMap.has(item.id)) return { ok: false, reason: `Dup id: ${item.id}` };
+            resMap.set(item.id, item.target);
+        }
+        for (const s of batch) {
+            if (!resMap.has(s.id)) return { ok: false, reason: `Missing id: ${s.id}` };
+        }
+        for (const s of batch) {
+            const srcText = (mode === 'translate') ? s.source : s.target;
+            const out = resMap.get(s.id) || '';
+            const exp = this.extractTagIdSet(srcText);
+            const got = this.extractTagIdSet(out);
+            for (const tid of exp) {
+                if (!got.has(tid)) return { ok: false, reason: `Missing tag {{${tid}}} in seg ${s.id}` };
+            }
+            // v19.2: Tag order validation relaxed — log warning instead of hard-fail
+            // Different languages naturally reorder tags due to syntax differences
+            const srcOrder = this.extractTagOrder(srcText);
+            const tgtOrder = this.extractTagOrder(out);
+            if (srcOrder.length === tgtOrder.length) {
+                for (let i = 0; i < srcOrder.length; i++) {
+                    if (srcOrder[i] !== tgtOrder[i]) {
+                        console.warn(`[TagOrder] Reordered in seg ${s.id}: [${srcOrder}] → [${tgtOrder}]`);
+                        break; // Warn only, do not fail
+                    }
+                }
+            }
+        }
+        return { ok: true };
+    },
+    getPrompt(mode, style, glossary, srcC, tgtC, count, contextStr) {
+        const g = glossary || '';
+        const styleGuide = { standard: "Professional, natural, clear.", literary: "Elegant, culturally adapted.", technical: "Precise, consistent terminology.", marketing: "Persuasive, benefit-oriented." }[style] || "Professional.";
+        const roleGuide = `[Role-Based] title/chartTitle→concise. axisTitle/legendLabel/categoryLabel→brief labels. dataLabel→preserve format. tableHeader→consistent terms. smartartNode→clear concepts. body→natural flow. footer→standard format.`;
+        const rules = `[Rules] 1)Tags {{N}}...{{/N}} MUST match in same order. No {{b}}/{{i}}. 2)Keep numbers/codes. 3)Consistency. 4)Count=${count}, all IDs.`;
+        const zhTW = (tgtC?.includes('zh-TW') || tgtC?.includes('繁體')) ? `[zh-TW] USE: 軟體/記憶體/伺服器. NO spaces between Chinese.` : "";
+        const zhCN = (tgtC?.includes('zh-CN') || tgtC?.includes('簡體')) ? `[zh-CN] USE: 软件/内存/服务器.` : "";
+        const ctx = contextStr ? `\n[CONTEXT] Previous translated segments for reference (DO NOT translate these, use for coherence only):\n${contextStr}\n` : '';
+        if (mode === 'translate') return `Translate ${srcC} to ${tgtC}.\n${g}[Style] ${styleGuide}\n${roleGuide}\n${rules}\n${zhTW}${zhCN}${ctx}\nInput: [{id,type,role,text}]\nOutput: [{"id":N,"target":"..."}]\nReturn exactly ${count} items. JSON only.`;
+        return `Edit ${tgtC}.\n${g}[Style] ${styleGuide}\n${roleGuide}\n${rules}\n${zhTW}${zhCN}${ctx}\nInput: [{id,type,role,original,draft}]\nOutput: [{"id":N,"target":"..."}]\nReturn exactly ${count} items. JSON only.`;
+    },
+    safeParseModelJson(raw) {
+        if (typeof raw !== 'string') return null;
+        // Strip markdown code fences (Gemini sometimes wraps JSON in ```json blocks)
+        let cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        // Try full parse first (handles both objects and arrays)
+        try { return JSON.parse(cleaned); } catch (e) {}
+        // Fallback: extract top-level array if embedded in other text
+        const f = cleaned.indexOf('['), l = cleaned.lastIndexOf(']');
+        if (f !== -1 && l !== -1 && l > f) try { return JSON.parse(cleaned.slice(f, l + 1)); } catch (e) {}
+        return null;
+    },
+    async callAI(apiKey, model, prompt, payload, signal, temperature = 0.1) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const combinedSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(120000)]) : AbortSignal.timeout(120000);
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            signal: combinedSignal,
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt + '\n\nInput:\n' + JSON.stringify(payload) }] }],
+                generationConfig: { responseMimeType: "application/json", temperature, topP: 0.8, candidateCount: 1 }
+            })
+        });
+        if (resp.status === 429 || resp.status === 503) {
+            const retryAfter = parseInt(resp.headers.get('Retry-After') || '2');
+            const err = new Error(`API ${resp.status}: rate limited`);
+            err.status = resp.status; err.retryAfter = retryAfter;
+            throw err;
+        }
+        if (!resp.ok) throw new Error(`API ${resp.status}: ${resp.statusText}`);
+        const json = await resp.json();
+        return this.safeParseModelJson(json.candidates?.[0]?.content?.parts?.[0]?.text);
+    },
+    localRepairResponse(batch, dataRes) {
+        if (!Array.isArray(dataRes)) return null;
+        const gotIds = new Set(dataRes.map(i => i.id)), result = [...dataRes];
+        for (const s of batch) if (!gotIds.has(s.id)) result.push({ id: s.id, target: s.target || s.source, _repairedWithSource: !(s.target) });
+        return result;
+    },
+    async callWithRetry(apiKey, model, prompt, payload, signal, maxRetries = 3, temperature = 0.1) {
+        const BASE_DELAY = 1000;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await this.callAI(apiKey, model, prompt, payload, signal, temperature);
+            } catch (e) {
+                if (e.name === 'AbortError') throw e;
+                let wait;
+                if ((e.status === 429 || e.status === 503) && attempt < maxRetries) {
+                    // v19.2: Reduced jitter from random*1000 to random*300
+                    wait = Math.max((e.retryAfter || 1) * 1000, BASE_DELAY * Math.pow(2, attempt)) + Math.random() * 300;
+                } else if (attempt < maxRetries && !e.status) {
+                    wait = BASE_DELAY * Math.pow(2, attempt) + Math.random() * 300;
+                } else {
+                    throw e;
+                }
+                // Abort-aware wait: cancel delay immediately if stop is requested
+                await new Promise((resolve, reject) => {
+                    if (signal?.aborted) { reject(new DOMException('Aborted', 'AbortError')); return; }
+                    const timeout = setTimeout(resolve, wait);
+                    const onAbort = () => { clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
+                    signal?.addEventListener('abort', onAbort, { once: true });
+                });
+            }
+        }
+    },
+    // ── Pre-Analysis: Term Extraction + Strategy Memo (one API call) ──
+    async preAnalyze(apiKey, model, segments, srcC, tgtC, signal) {
+        // Sample up to 40 segments for analysis (mix of start + evenly distributed)
+        const sampleSize = Math.min(40, segments.length);
+        const step = Math.max(1, Math.floor(segments.length / sampleSize));
+        const samples = [];
+        for (let i = 0; i < segments.length && samples.length < sampleSize; i += step) {
+            samples.push(segments[i]);
+        }
+        const sampleTexts = samples.map(s => s.source.replace(TAG_REGEX, '$2'));
+        const prompt = `You are a translation pre-analysis engine. Analyze these ${srcC} text samples and produce a JSON object with two fields:
+
+1. "terms": An array of up to 25 key recurring terms/phrases (proper nouns, technical terms, domain-specific vocabulary) with their recommended ${tgtC} translations. Format: [{"s":"source term","t":"target translation"}, ...]
+   - Focus on terms appearing 2+ times or domain-critical terms
+   - Include company names, product names, abbreviations, technical jargon
+   - Exclude common words and stop words
+
+2. "strategy": A concise translation strategy memo (3-5 lines) covering:
+   - Document type and domain (e.g. legal, technical, marketing)
+   - Tone and register (formal/casual/neutral)
+   - Key translation decisions (e.g. keep brand names in English, translate acronyms, etc.)
+   - Target audience inference
+
+Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
+        try {
+            const result = await this.callWithRetry(apiKey, model, prompt, sampleTexts, signal, 2, 0.2);
+            if (result && typeof result === 'object') {
+                const terms = Array.isArray(result.terms) ? result.terms.filter(t => t.s && t.t).slice(0, 25) : [];
+                const strategy = typeof result.strategy === 'string' ? result.strategy.trim() : '';
+                return { terms, strategy };
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') throw e;
+            console.warn('[PreAnalyze] Failed, continuing without pre-analysis:', e.message);
+        }
+        return { terms: [], strategy: '' };
+    },
+    async callBatchWithValidation(apiKey, mode, style, batch, payload, model, srcC, tgtC, glossary, signal, contextStr) {
+        const prompt = this.getPrompt(mode, style, glossary, srcC, tgtC, batch.length, contextStr);
+        const temp = mode === 'polish' ? 0.4 : 0.1;
+        let dataRes = await this.callWithRetry(apiKey, model, prompt, payload, signal, 3, temp);
+        let check = this.validateBatchResponse(mode, batch, dataRes);
+        if (check.ok) return dataRes;
+        // Local repair attempt
+        if (check.reason.includes('Count') || check.reason.includes('Missing id')) {
+            const repaired = this.localRepairResponse(batch, dataRes);
+            if (repaired) { check = this.validateBatchResponse(mode, batch, repaired); if (check.ok) return repaired; }
+        }
+        // AI repair with detailed instructions
+        console.warn('Repair triggered:', check.reason);
+        this.stats.repairCount = (this.stats.repairCount || 0) + 1;
+        const repairPrompt = prompt + `\n\n[REPAIR REQUIRED]\nPrevious output was INVALID: ${check.reason}\n\nCRITICAL FIXES NEEDED:\n- Return EXACTLY ${batch.length} items\n- Preserve ALL tag IDs {{N}}...{{/N}} from input\n- Keep tags in EXACT SAME ORDER as input\n- Do NOT merge, split, or reorder tags\n- Every tag must contain translated content\n\nReturn corrected JSON array NOW.`;
+        dataRes = await this.callWithRetry(apiKey, model, repairPrompt, payload, signal, 2, temp);
+        check = this.validateBatchResponse(mode, batch, dataRes);
+        if (check.ok) return dataRes;
+        // Final local repair — re-validate before accepting
+        const finalRepair = this.localRepairResponse(batch, dataRes);
+        if (finalRepair) {
+            const finalCheck = this.validateBatchResponse(mode, batch, finalRepair);
+            if (finalCheck.ok) return finalRepair;
+            console.warn('Final repair still invalid:', finalCheck.reason);
+        }
+        throw new Error(`Validation failed: ${check.reason}`);
+    },
+    async runBatchProcess(mode) {
+        if (this._busy) { showToast('操作進行中，請稍候', 'warn'); return; }
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) return showToast('請先輸入 API Key', 'warn');
+        this._busy = true;
+        try {
+            this.saveKey();
+            this.stopRequested = false;
+            this.aborters.clear();
+            const style = this.polishStyle;
+            const srcName = document.getElementById('sourceLang').value;
+            const tgtName = document.getElementById('targetLang').value;
+            const srcC = this.getLangCodeFromName(srcName) || 'auto';
+            const tgtC = this.getLangCodeFromName(tgtName) || 'zh-TW';
+            const model = document.getElementById('model').value;
+            const glossary = this.getGlossaryPromptText();
+
+            let todos = mode === 'translate'
+                ? this.segments.filter(s => !s.target)
+                : this.segments.filter(s => s.target?.trim());
+            if (todos.length === 0) {
+                showToast(mode === 'translate' ? '無需翻譯' : '請先翻譯', 'info');
+                return;
+            }
+
+            const modeLabel = mode === 'translate' ? '翻譯中' : '潤稿中';
+            this.perfMetrics = { startTime: Date.now(), batchCount: 0, repairCount: 0 };
+            this.stats.repairCount = 0;
+            this.stats.translationErrors = [];
+            UI.disableDownloadGlow();
+
+            // ── Phase 0: originalTotal tracks the full count for accurate progress ──
+            const originalTotal = todos.length;
+            let tmHit = 0;
+
+            // ── Phase 1: TM Prefetch ──
+            if (mode === 'translate') {
+                UI.showProgress(true, 0, originalTotal, '檢查記憶庫...');
+                const { hits, misses } = await this.tmPrefetch(todos, srcC, tgtC);
+                tmHit = hits.length;
+                hits.forEach(s => this.uiUpdateQueue.push(s.id));
+                this.flushUIUpdates();
+                todos = misses;
+            }
+
+            if (todos.length === 0) {
+                UI.showProgress(false);
+                UI.render();
+                UI.enableDownloadGlow();
+                UI.showModal('完成', `${tmHit} 段來自記憶庫！`);
+                return;
+            }
+
+            // ── Phase 2: Deduplication ──
+            const uMap = this.deduplicateSegments(todos);
+            let uSegs = Array.from(uMap.values()).map(g => g.representative);
+
+            // ── Phase 3: Pre-Analysis (optional, controlled by checkbox) ──
+            const usePreAnalyze = document.getElementById('optPreAnalyze')?.checked;
+            let enrichedGlossary = glossary;
+            if (mode === 'translate' && usePreAnalyze && uSegs.length >= 3) {
+                UI.showProgress(true, null, null, '🔍 分析術語與策略...');
+                const preAc = new AbortController();
+                this.aborters.add(preAc);
+                try {
+                    const analysis = await this.preAnalyze(apiKey, model, uSegs, srcC, tgtC, preAc.signal);
+                    if (analysis.terms.length > 0) {
+                        const existingTerms = new Set(this.glossaryItems.map(t => t.src.toLowerCase()));
+                        const newTerms = analysis.terms.filter(t => !existingTerms.has(t.s.toLowerCase()));
+                        if (newTerms.length > 0) {
+                            const autoTermStr = newTerms.map(t => `${t.s} → ${t.t}`).join('\n');
+                            enrichedGlossary = glossary
+                                ? glossary + autoTermStr + '\n'
+                                : '[Glossary]\n' + autoTermStr + '\n';
+                            console.log(`[PreAnalyze] Extracted ${newTerms.length} terms:`, newTerms);
+                        }
+                    }
+                    if (analysis.strategy) {
+                        enrichedGlossary += `[Strategy] ${analysis.strategy}\n`;
+                        console.log('[PreAnalyze] Strategy memo:', analysis.strategy);
+                    }
+                    if (analysis.terms.length > 0 || analysis.strategy) {
+                        showToast(`術語 ${analysis.terms.length} 個 · 策略已建立`, 'success', 2500);
+                    }
+                } catch (e) {
+                    if (e.name === 'AbortError') { UI.showProgress(false); return; }
+                    console.warn('[PreAnalyze] Skipped:', e.message);
+                } finally {
+                    this.aborters.delete(preAc);
+                }
+            }
+
+            // ── Phase 4: Batch Translation/Polish ──
+            // Progress: use uSegs.length as the unified total (deduped count)
+            // tmHit segments are already done, so we track separately in the final report
+            const total = uSegs.length;
+            let processed = 0, failedCount = 0;
+            UI.showProgress(true, 0, total, modeLabel);
+            const batches = this.prepareDynamicBatches(uSegs, mode);
+            this.perfMetrics.batchCount = batches.length;
+            this.uiUpdateQueue = [];
+
+            // ── Adjacent Context (optional, controlled by checkbox) ──
+            const useAdjacentCtx = document.getElementById('optAdjacentContext')?.checked;
+            const batchContextStrs = batches.map((_, bi) => {
+                if (!useAdjacentCtx || bi === 0) return '';
+                const prevBatch = batches[bi - 1];
+                const tail = prevBatch.slice(-2);
+                return tail.map(s => `[${this.stripTags(s.source).slice(0, 80)}]`).join('\n');
+            });
+
+            const LIMIT = 4;
+            const tasks = batches.map((batch, bi) => async () => {
+                if (this.stopRequested) return;
+                const ac = new AbortController();
+                this.aborters.add(ac);
+                const payload = mode === 'polish'
+                    ? batch.map(s => ({ id: s.id, type: s.meta?.containerType || 'std', role: s.meta?.role || 'body', original: s.source, draft: s.target }))
+                    : batch.map(s => ({ id: s.id, type: s.meta?.containerType || 'std', role: s.meta?.role || 'body', text: s.source }));
+                const contextStr = batchContextStrs[bi];
+                try {
+                    const dataRes = await this.callBatchWithValidation(
+                        apiKey, mode, style, batch, payload, model, srcC, tgtC, enrichedGlossary, ac.signal, contextStr
+                    );
+                    if (Array.isArray(dataRes)) {
+                        const resMap = new Map(dataRes.map(i => [i.id, { target: i.target, fallback: !!i._repairedWithSource }]));
+                        for (const s of batch) {
+                            const r = resMap.get(s.id);
+                            if (r) {
+                                if (r.fallback) {
+                                    this.stats.sourceFallbackCount = (this.stats.sourceFallbackCount || 0) + 1;
+                                } else {
+                                    s.target = r.target;
+                                    if (mode === 'translate') TM.set(s.source, r.target, srcC, tgtC);
+                                }
+                                this.uiUpdateQueue.push(s.id);
+                            }
+                        }
+                    }
+                    processed += batch.length;
+                    UI.showProgress(true, processed, total, modeLabel);
+                    this.flushUIUpdates();
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    console.error('Batch failed:', err);
+                    processed += batch.length;
+                    failedCount += batch.length;
+                    UI.showProgress(true, processed, total, `${modeLabel}（${failedCount} 段失敗）`);
+                    this.stats.translationErrors.push({ batch: bi, error: err.message });
+                } finally {
+                    this.aborters.delete(ac);
+                }
+            });
+
+            const executing = new Set();
+            for (const task of tasks) {
+                if (this.stopRequested) break;
+                const p = task().then(() => executing.delete(p));
+                executing.add(p);
+                if (executing.size >= LIMIT) await Promise.race(executing);
+            }
+            await Promise.all(executing);
+            this.applyToDuplicates(uMap);
+
+            // ── Phase 5: Report ──
+            this.perfMetrics.repairCount = this.stats.repairCount || 0;
+            const elapsed = Date.now() - this.perfMetrics.startTime;
+            const ps = document.getElementById('perfStats');
+            if (ps) {
+                document.getElementById('perfTime').textContent = elapsed;
+                document.getElementById('perfBatches').textContent = this.perfMetrics.batchCount;
+                document.getElementById('perfRepairs').textContent = this.perfMetrics.repairCount;
+                ps.style.display = '';
+            }
+            UI.showProgress(false);
+            UI.render();
+            if (!this.stopRequested) {
+                let msg = mode === 'translate' ? '翻譯完成！' : '潤稿完成！';
+                if (tmHit > 0) msg += `<br><small>(${tmHit} 段來自記憶庫)</small>`;
+                const dupCount = originalTotal - uSegs.length;
+                if (dupCount > 0) msg += `<br><small>(${dupCount} 段重複已自動套用)</small>`;
+                if (this.stats.sourceFallbackCount > 0) {
+                    msg += `<br><small style="color:var(--aka);">⚠ ${this.stats.sourceFallbackCount} 段 API 未回傳，已保留原文（未翻譯）</small>`;
+                }
+                if (this.stats.translationErrors.length > 0) {
+                    msg += `<br><small style="color:var(--aka);">批次錯誤：${this.stats.translationErrors.length}</small>`;
+                }
+                msg += `<br><small style="color:var(--sumi-light);">⚡ ${elapsed}ms | ${this.perfMetrics.batchCount} 批次${this.perfMetrics.repairCount > 0 ? ` | ${this.perfMetrics.repairCount} 修復` : ''}</small>`;
+                UI.enableDownloadGlow();
+                UI.showModal('完成', msg);
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.error(`[${mode}] Unhandled error:`, e);
+                showToast(`${mode === 'translate' ? '翻譯' : '潤稿'}失敗：${e.message}`, 'error', 5000);
+            }
+            UI.showProgress(false);
+        } finally {
+            this._busy = false;
+        }
+    },
+    flushUIUpdates() {
+        if (this.uiUpdateQueue.length === 0) return;
+        requestAnimationFrame(() => {
+            const q = this.uiUpdateQueue.splice(0);
+            for (const id of q) {
+                const s = this.getSegmentById(id);
+                if (s) { const el = document.querySelector(`[data-seg-id="${id}"] .seg-tgt`); if (el) { el.innerHTML = UI.renderWithTags(s.target, s.refs); el.closest('.seg-card')?.classList.add('flash'); } }
+            }
+        });
+    },
+    stopProcessing() {
+        this.stopRequested = true;
+        for (const ac of this.aborters) ac.abort();
+        this.aborters.clear();
+        UI.showProgress(false);
+        this._busy = false;
+    },
+    translate() { this.runBatchProcess('translate'); },
+    polish() {
+        const polishMode = document.querySelector('input[name="polishMode"]:checked')?.value || 'batch';
+        if (polishMode === 'context') {
+            this._runContextPolish();
+        } else {
+            this.runBatchProcess('polish');
+        }
+    },
+
+    // ============================================================
+    // Cross-Segment Context Polisher (ported from v19.0)
+    // Detects: pronoun gender mismatch, term inconsistency,
+    // register uniformity, fragmented grammar
+    // ============================================================
+    async _runContextPolish() {
+        if (this._busy) { showToast('操作進行中，請稍候', 'warn'); return; }
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) return showToast('請先輸入 API Key', 'warn');
+        this._busy = true;
+        try {
+            this.saveKey();
+            this.stopRequested = false;
+            const tgtName = document.getElementById('targetLang').value;
+            const tgtC = this.getLangCodeFromName(tgtName) || 'zh-TW';
+            const translatedSegs = this.segments.filter(s => s.target?.trim());
+            if (translatedSegs.length === 0) { showToast('請先翻譯', 'warn'); return; }
+
+            this.perfMetrics = { startTime: Date.now(), batchCount: 0, repairCount: 0 };
+            UI.showProgress(true, 0, translatedSegs.length, '🧠 跨段語境潤稿中');
+            UI.disableDownloadGlow();
+
+            const ac = new AbortController();
+            this.aborters.add(ac);
+
+            const result = await ContextPolisher.polish(
+                apiKey, this.segments, tgtC,
+                (done, total, changed) => {
+                    UI.showProgress(true, done, total, `🧠 潤稿中 (${changed} 段已優化)`);
+                },
+                ac.signal
+            );
+            console.log(`[ContextPolish] Done: ${result.total} segs, ${result.changed} changed`);
+
+            const elapsed = Date.now() - this.perfMetrics.startTime;
+            const ps = document.getElementById('perfStats');
+            if (ps) {
+                document.getElementById('perfTime').textContent = elapsed;
+                document.getElementById('perfBatches').textContent = result.total;
+                document.getElementById('perfRepairs').textContent = result.changed;
+                ps.style.display = '';
+            }
+            UI.showProgress(false);
+            UI.render();
+            if (!this.stopRequested) {
+                UI.enableDownloadGlow();
+                UI.showModal('潤稿完成', `🧠 已審閱 ${result.total} 段，優化 ${result.changed} 段<br><small style="color:var(--sumi-light);">⚡ ${elapsed}ms</small>`);
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.error('Context polish error:', e);
+                UI.showProgress(false);
+                showToast('潤稿失敗：' + e.message, 'error', 5000);
+            }
+        } finally {
+            this.aborters.delete(ac);
+            this._busy = false;
+        }
+    },
+
+    // ============================================================
+    // Download Engine (v19.1 with SDT Layer 2 & 3)
+    // ============================================================
+    async download() {
+        if (this._busy) { showToast('操作進行中，請稍候', 'warn'); return; }
+        if (!this.zip && this.fileType !== 'txt') { showToast('檔案資料已釋放，請重新「解析」後再下載', 'warn'); return; }
+        this._busy = true;
+        try {
+        UI.showProgress(true, 0, 100, '打包檔案...');
+        UI.disableDownloadGlow();
+        let dlMode = document.querySelector('input[name="downloadMode"]:checked')?.value || 'translated';
+        const useHOPE = document.getElementById('optHOPE')?.checked !== false;
+        const tgtLangName = document.getElementById('targetLang').value;
+        let bilingualDowngraded = false;
+
+        // Reset download stats
+        this.stats.translatedSegments = 0;
+        this.stats.skippedSegments = 0;
+        this.stats.restoredTags = 0;
+        this.stats.hopeStats = { safe: 0, shrink: 0, clip: 0 };
+        this.stats.sdtResidualCount = 0;
+        this.stats.errors = this.stats.errors.filter(e => e.type !== 'sdt-residual');
+        this._docxBilingualProcessed = null; // v19.1: Reset bilingual tracking
+
+        // Step 1: Bilingual mode fallback for non-PPTX/DOCX (v19.1: DOCX now supported)
+        if (dlMode === 'bilingual' && this.fileType !== 'pptx' && this.fileType !== 'docx') {
+            dlMode = 'translated';
+            bilingualDowngraded = true;
+        }
+
+        // HOPE processing (PPTX tables)
+        if (useHOPE && this.fileType === 'pptx') {
+            UI.showProgress(true, 15, 100, '套用 HOPE...');
+            const cellMap = new Map();
+            this.segments.forEach(s => { if (s.meta?.containerType === 'table' && s.meta?.cellKey) { const k = s.meta.cellKey; if (!cellMap.has(k)) cellMap.set(k, []); cellMap.get(k).push(s); } });
+            for (const [, cSegs] of cellMap) { const cd = this.table.aggregateCellDensity(cSegs, tgtLangName); if (cd) { const st = this.table.applyHOPE(cd); this.stats.hopeStats[st]++; } }
+        }
+
+        // v19.1: DOCX HOPE processing
+        if (useHOPE && this.fileType === 'docx') {
+            UI.showProgress(true, 18, 100, '套用 DOCX HOPE...');
+            const docxCellMap = new Map();
+            this.segments.forEach(s => {
+                if (s.meta?.containerType === 'table' && s.meta?.cellKey && s.meta?.cellWidth) {
+                    const k = s.meta.cellKey;
+                    if (!docxCellMap.has(k)) docxCellMap.set(k, []);
+                    docxCellMap.get(k).push(s);
+                }
+            });
+            for (const [, cSegs] of docxCellMap) {
+                const st = this.applyDocxHOPE(cSegs, tgtLangName);
+                if (st) this.stats.hopeStats[st]++;
+            }
+        }
+
+        const langCode = LANGS.find(l => l.name === tgtLangName)?.code || 'translated';
+        let modeSuffix = dlMode === 'bilingual' ? '_bilingual' : dlMode === 'original' ? '_original' : '';
+        let newName = `translated_${Date.now()}.${this.fileType}`;
+        if (this.originalFileName) {
+            const ld = this.originalFileName.lastIndexOf('.');
+            const base = ld !== -1 ? this.originalFileName.substring(0, ld) : this.originalFileName;
+            const ext = ld !== -1 ? this.originalFileName.substring(ld) : '';
+            newName = `${base}_${langCode}${modeSuffix}_v19.3${ext}`;
+        }
+
+        // Original mode: just re-download
+        if (dlMode === 'original') {
+            const blob = await this.zip.generateAsync({ type: "blob" });
+            downloadBlob(blob, newName.replace('_original', ''));
+            UI.showProgress(false); UI.showModal("完成", "已下載原始檔案");
+            this.parsedDOMs = {}; this.relMap = {}; this.zip = null;
+            return;
+        }
+
+        // TXT mode
+        if (this.fileType === 'txt') {
+            let c = dlMode === 'bilingual'
+                ? this.segments.map(s => `[原] ${this.stripTags(s.source)}\n[譯] ${this.stripTags(s.target||s.source)}`).join('\n\n')
+                : this.segments.map(s => this.stripTags(s.target || s.source)).join('\n');
+            const blob = new Blob([c + '\n\n--- 翻 v19.3 ---'], { type: "text/plain;charset=utf-8" });
+            downloadBlob(blob, newName);
+            UI.showProgress(false); UI.showModal("完成", "檔案已下載"); return;
+        }
+
+        // Office file modes
+        const fixFont = document.getElementById('optFixFont')?.checked;
+        const fixLang = document.getElementById('optFixLang')?.checked;
+        const tgtLangCode = this.getLangCodeFromName(tgtLangName);
+
+        // v19.1: Pre-compute DOCX bilingual paragraph translation map
+        this._docxBilingualParaMap = new Map(); // w:p node → full translated text
+        if (dlMode === 'bilingual' && this.fileType === 'docx') {
+            for (const seg of this.segments) {
+                if (!seg.refs?.length || !seg.target) continue;
+                const ct = seg.meta?.containerType;
+                if (ct === 'docx-chart' || ct === 'docx-smartart') continue;
+                const firstRef = seg.refs[0];
+                if (!firstRef?.node) continue;
+                let pNode = firstRef.node;
+                while (pNode && !(pNode.localName === 'p' && pNode.namespaceURI === NS.w)) pNode = pNode.parentNode;
+                if (!pNode) continue;
+                const tgtText = [...seg.target.matchAll(TAG_REGEX)].map(m => m[2]).join('');
+                if (!tgtText.trim()) continue;
+                const existing = this._docxBilingualParaMap.get(pNode) || '';
+                this._docxBilingualParaMap.set(pNode, existing + tgtText);
+            }
+        }
+
+        UI.showProgress(true, 30, 100, '寫入翻譯...');
+        for (const seg of this.segments) {
+            if (!seg.refs) continue;
+            let target = seg.target;
+            if (!target && dlMode === 'translated') { this.stats.skippedSegments++; continue; }
+            this.stats.translatedSegments++;
+            const ct = seg.meta?.containerType;
+
+            if (dlMode === 'bilingual' && target) {
+                if (ct === 'chart' || ct === 'smartart' || ct === 'docx-chart' || ct === 'docx-smartart') {
+                    this.writeBilingualChartSegment(seg, target);
+                } else if (this.fileType === 'docx') {
+                    // v19.1: DOCX bilingual uses paragraph insertion strategy
+                    this.writeDocxBilingualSegment(seg, target, tgtLangCode);
+                } else {
+                    this.writeBilingualSegment(seg, target, tgtLangCode);
+                }
+                continue;
+            }
+            if (dlMode === 'translated' && target) {
+                if (this.isCJKLanguage(tgtLangName)) target = this.cleanCJKSpaces(target);
+                this.writeTranslatedSegment(seg, target, fixFont, fixLang, tgtLangCode, !this.isCJKLanguage(tgtLangName));
+            }
+        }
+
+        // SDT Layer 2: Re-sanitize all word/ DOMs before serialization
+        if (this.fileType === 'docx') {
+            UI.showProgress(true, 60, 100, 'SDT 防禦...');
+            for (const [path, doc] of Object.entries(this.parsedDOMs)) {
+                if (path.startsWith('word/')) this.sanitizeSDTBindings(doc);
+            }
+        }
+
+        UI.showProgress(true, 70, 100, '序列化 XML...');
+        for (const [path, doc] of Object.entries(this.parsedDOMs)) {
+            let xml = new XMLSerializer().serializeToString(doc);
+            if (!xml.startsWith('<?xml')) xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + xml;
+
+            // SDT Layer 3: Post-serialization residual detection (DOCX only)
+            if (this.fileType === 'docx' && path.startsWith('word/')) {
+                const residuals = xml.match(/[<\s]w:dataBinding[\s>\/]/g);
+                if (residuals) {
+                    this.stats.sdtResidualCount += residuals.length;
+                    this.stats.errors.push({ type: 'sdt-residual', path, error: `${residuals.length} residual w:dataBinding found` });
+                }
+            }
+            this.zip.file(path, xml);
+        }
+
+        if (this.stopRequested) { UI.showProgress(false); showToast('已取消下載', 'info'); return; }
+        UI.showProgress(true, 90, 100, '產生下載...');
+        const blob = await this.zip.generateAsync({ type: "blob" });
+        if (this.stopRequested) { UI.showProgress(false); showToast('已取消下載', 'info'); return; }
+        downloadBlob(blob, newName);
+        UI.showProgress(false);
+
+        // Build completion report
+        let statsMsg = `已翻譯：${this.stats.translatedSegments} / ${this.segments.length} 段`;
+        if (this.stats.skippedSegments > 0) statsMsg += `<br><small>跳過 ${this.stats.skippedSegments} 段</small>`;
+        if (this.stats.restoredTags > 0) statsMsg += `<br><small>已修復標籤：${this.stats.restoredTags}</small>`;
+        if (useHOPE && (this.stats.hopeStats.shrink > 0 || this.stats.hopeStats.clip > 0))
+            statsMsg += `<br><small>🛡️ HOPE: ${this.stats.hopeStats.shrink} 縮字, ${this.stats.hopeStats.clip} 剪裁</small>`;
+        if (this.stats.translationErrors.length > 0)
+            statsMsg += `<br><small style="color:var(--aka);">批次錯誤：${this.stats.translationErrors.length}</small>`;
+        if (this.stats.sdtResidualCount > 0)
+            statsMsg += `<br><small style="color:var(--aka);">⚠ 偵測到 ${this.stats.sdtResidualCount} 處殘留 dataBinding，Word 可能回退翻譯</small>`;
+        if (bilingualDowngraded)
+            statsMsg += `<br><small style="color:var(--chart-color);">非 PPTX/DOCX 格式已自動降級為翻譯模式</small>`;
+        UI.showModal("完成", statsMsg);
+
+        } catch (e) {
+            console.error('[Download] Error:', e);
+            UI.showProgress(false);
+            showToast('下載失敗：' + e.message, 'error', 5000);
+        } finally { this._busy = false; }
+    },
+
+    writeTranslatedSegment(seg, target, fixFont, fixLang, tgtLangCode, needsSpace = false) {
+        const tagMatches = [...target.matchAll(TAG_REGEX)], tagMap = new Map(tagMatches.map(m => [parseInt(m[1]), m[2]]));
+        const srcTagIds = this.extractTagIdSet(seg.source), tgtTagIds = this.extractTagIdSet(target);
+        for (const tid of srcTagIds) {
+            if (!tgtTagIds.has(tid)) {
+                const srcMatch = seg.source.match(new RegExp(`\\{\\{${tid}\\}\\}([\\s\\S]*?)\\{\\{\\/${tid}\\}\\}`, 's'));
+                if (srcMatch) { tagMap.set(tid, srcMatch[1]); this.stats.restoredTags++; }
+            }
+        }
+        for (let i = 0; i < seg.refs.length; i++) {
+            const ref = seg.refs[i]; if (!ref || ref.type !== 'text') continue;
+            let newText = tagMap.get(i);
+            if (newText === undefined) { const fb = seg.source.match(new RegExp(`\\{\\{${i}\\}\\}([\\s\\S]*?)\\{\\{\\/${i}\\}\\}`, 's')); newText = fb ? fb[1] : ''; }
+            // Insert space between adjacent runs for non-CJK targets to prevent word concatenation
+            if (needsSpace && /[a-zA-Z0-9]$/.test(newText)) {
+                const nextText = tagMap.get(i + 1);
+                if (nextText && /^[a-zA-Z0-9]/.test(nextText)) newText += ' ';
+            }
+            if (ref.merged && ref.nodes?.length > 1) {
+                ref.nodes[0].textContent = newText;
+                // v19.3: Remove empty Run nodes to prevent ghost whitespace from residual rPr
+                for (let j = 1; j < ref.nodes.length; j++) {
+                    const rNode = ref.nodes[j].parentNode;
+                    if (rNode?.localName === 'r' && rNode.parentNode) {
+                        // #009: Preserve runs with hyperlinks — only clear text, don't delete
+                        const rPr = rNode.getElementsByTagNameNS?.(NS.a, 'rPr')?.[0] || rNode.getElementsByTagNameNS?.(NS.w, 'rPr')?.[0];
+                        const hasHlink = rPr?.getElementsByTagNameNS?.(NS.a, 'hlinkClick')?.length > 0;
+                        if (hasHlink) {
+                            ref.nodes[j].textContent = '';
+                        } else {
+                            rNode.parentNode.removeChild(rNode);
+                        }
+                    } else {
+                        ref.nodes[j].textContent = '';
+                    }
+                }
+            } else if (ref.node) {
+                ref.node.textContent = newText;
+            }
+            if (fixLang && ref.node && tgtLangCode && this.fileType === 'pptx') this.fixLanguageAttribute(ref.node, tgtLangCode);
+            if (fixFont && ref.node && this.fileType === 'pptx') this.autoAdjustFontSize(ref.node, seg.source, target);
+        }
+    },
+
+    writeBilingualSegment(seg, target, tgtLangCode) {
+        if (!seg.refs?.length) return;
+        const firstRef = seg.refs[0]; if (!firstRef?.node) return;
+        const srcMatches = [...seg.source.matchAll(TAG_REGEX)], origText = srcMatches.map(m => m[2]).join('');
+        const tgtMatches = [...target.matchAll(TAG_REGEX)], transText = tgtMatches.map(m => m[2]).join('');
+        if (!origText.trim() && !transText.trim()) return;
+        let pNode = firstRef.node.parentNode;
+        while (pNode && pNode.localName !== 'p') pNode = pNode.parentNode;
+        if (!pNode) return;
+        const doc = pNode.ownerDocument, ns = pNode.namespaceURI;
+        // Preserve pPr
+        const existingPPr = pNode.getElementsByTagNameNS(ns, 'pPr')[0];
+        const pPrClone = existingPPr ? existingPPr.cloneNode(true) : null;
+        while (pNode.firstChild) pNode.removeChild(pNode.firstChild);
+        if (pPrClone) pNode.appendChild(pPrClone);
+
+        const origStyle = firstRef.style;
+        const origFontSize = origStyle?.size ? Math.round(origStyle.size * 100) : 1800;
+        const smallerSize = Math.round(origFontSize * 0.7);
+
+        const origRun = doc.createElementNS(ns, 'a:r');
+        const origRPr = doc.createElementNS(ns, 'a:rPr');
+        origRPr.setAttribute('sz', smallerSize.toString());
+        origRPr.setAttribute('lang', 'en-US');
+        if (origStyle?.color) {
+            const sf = doc.createElementNS(ns, 'a:solidFill'), sc = doc.createElementNS(ns, 'a:srgbClr');
+            sc.setAttribute('val', origStyle.color); sf.appendChild(sc); origRPr.appendChild(sf);
+        }
+        origRun.appendChild(origRPr);
+        const origT = doc.createElementNS(ns, 'a:t'); origT.textContent = origText; origRun.appendChild(origT);
+        pNode.appendChild(origRun);
+
+        const br = doc.createElementNS(ns, 'a:br');
+        const brRPr = doc.createElementNS(ns, 'a:rPr'); brRPr.setAttribute('sz', smallerSize.toString());
+        br.appendChild(brRPr); pNode.appendChild(br);
+
+        const transRun = doc.createElementNS(ns, 'a:r');
+        const transRPr = doc.createElementNS(ns, 'a:rPr');
+        transRPr.setAttribute('sz', smallerSize.toString());
+        transRPr.setAttribute('lang', tgtLangCode || 'zh-TW');
+        const transFill = doc.createElementNS(ns, 'a:solidFill'), transSrgb = doc.createElementNS(ns, 'a:srgbClr');
+        transSrgb.setAttribute('val', '0066CC'); transFill.appendChild(transSrgb); transRPr.appendChild(transFill);
+        transRun.appendChild(transRPr);
+        const transT = doc.createElementNS(ns, 'a:t');
+        transT.textContent = this.isCJKLanguage(document.getElementById('targetLang').value) ? this.cleanCJKSpaces(transText) : transText;
+        transRun.appendChild(transT); pNode.appendChild(transRun);
+    },
+
+    writeBilingualChartSegment(seg, target) {
+        if (!seg.refs?.length) return;
+        const srcMatches = [...seg.source.matchAll(TAG_REGEX)], origText = srcMatches.map(m => m[2]).join('');
+        const tgtMatches = [...target.matchAll(TAG_REGEX)], transText = tgtMatches.map(m => m[2]).join('');
+        if (!origText.trim() && !transText.trim()) return;
+        const firstRef = seg.refs[0];
+        if (firstRef?.node) {
+            // For simple c:v nodes, concatenate with separator
+            if (firstRef.node.localName === 'v') {
+                firstRef.node.textContent = origText + ' / ' + (this.isCJKLanguage(document.getElementById('targetLang').value) ? this.cleanCJKSpaces(transText) : transText);
+            } else {
+                // For rich text nodes, append with newline
+                firstRef.node.textContent = origText + '\n' + (this.isCJKLanguage(document.getElementById('targetLang').value) ? this.cleanCJKSpaces(transText) : transText);
+            }
+        }
+    },
+
+    // ============================================================
+    // v19.1: DOCX Bilingual Write-Back (Phase 2C)
+    // Uses paragraph insertion strategy — inserts new w:p after original
+    // ============================================================
+    _docxBilingualProcessed: null, // Set of processed w:p nodes (reset per download)
+    writeDocxBilingualSegment(seg, target, tgtLangCode) {
+        if (!seg.refs?.length || !target) return;
+        // Initialize the processed set on first call
+        if (!this._docxBilingualProcessed) this._docxBilingualProcessed = new WeakSet();
+
+        const firstRef = seg.refs[0];
+        if (!firstRef?.node) return;
+
+        // Find the original w:p paragraph
+        let pNode = firstRef.node;
+        while (pNode && !(pNode.localName === 'p' && pNode.namespaceURI === NS.w)) pNode = pNode.parentNode;
+        if (!pNode) return;
+
+        // Skip if already processed (multiple segments from same paragraph)
+        if (this._docxBilingualProcessed.has(pNode)) return;
+        this._docxBilingualProcessed.add(pNode);
+
+        const doc = pNode.ownerDocument;
+
+        // For bilingual: original paragraph is KEPT INTACT (not modified)
+        // Get the full translated text for this paragraph from the pre-computed map
+        let fullTranslatedText = this._docxBilingualParaMap?.get(pNode) || '';
+        if (!fullTranslatedText.trim()) {
+            // Fallback: extract from current segment
+            fullTranslatedText = [...target.matchAll(TAG_REGEX)].map(m => m[2]).join('');
+        }
+        if (!fullTranslatedText.trim()) return;
+        if (this.isCJKLanguage(document.getElementById('targetLang').value)) fullTranslatedText = this.cleanCJKSpaces(fullTranslatedText);
+
+        // Determine font size for the translation paragraph
+        const origFontPt = firstRef.style?.size || 11; // Default 11pt for DOCX
+        const scaledHalfPt = Math.max(16, Math.round(origFontPt * 2 * 0.85)); // 85% of original, in half-points
+
+        // Create new w:p element for translation
+        const newP = doc.createElementNS(NS.w, 'w:p');
+
+        // Clone pPr from original (preserve indent, alignment, spacing) but remove numPr
+        const origPPr = pNode.getElementsByTagNameNS(NS.w, 'pPr')[0];
+        if (origPPr) {
+            const pPrClone = origPPr.cloneNode(true);
+            // Remove w:numPr to avoid duplicate bullets/numbers
+            const numPr = pPrClone.getElementsByTagNameNS(NS.w, 'numPr')[0];
+            if (numPr) numPr.parentNode.removeChild(numPr);
+            newP.appendChild(pPrClone);
+        }
+
+        // Create the translation run
+        const newR = doc.createElementNS(NS.w, 'w:r');
+
+        // Build w:rPr with italic, blue, smaller font, target language
+        const rPr = doc.createElementNS(NS.w, 'w:rPr');
+        // w:i (italic)
+        const iEl = doc.createElementNS(NS.w, 'w:i');
+        rPr.appendChild(iEl);
+        const iCsEl = doc.createElementNS(NS.w, 'w:iCs');
+        rPr.appendChild(iCsEl);
+        // w:color (blue #0066CC)
+        const colorEl = doc.createElementNS(NS.w, 'w:color');
+        colorEl.setAttributeNS(NS.w, 'w:val', '0066CC');
+        rPr.appendChild(colorEl);
+        // w:sz (font size in half-points)
+        const szEl = doc.createElementNS(NS.w, 'w:sz');
+        szEl.setAttributeNS(NS.w, 'w:val', scaledHalfPt.toString());
+        rPr.appendChild(szEl);
+        const szCsEl = doc.createElementNS(NS.w, 'w:szCs');
+        szCsEl.setAttributeNS(NS.w, 'w:val', scaledHalfPt.toString());
+        rPr.appendChild(szCsEl);
+        // w:lang
+        if (tgtLangCode) {
+            const langEl = doc.createElementNS(NS.w, 'w:lang');
+            langEl.setAttributeNS(NS.w, 'w:val', tgtLangCode);
+            rPr.appendChild(langEl);
+        }
+        newR.appendChild(rPr);
+
+        // w:t with translated text
+        const tEl = doc.createElementNS(NS.w, 'w:t');
+        tEl.setAttribute('xml:space', 'preserve');
+        tEl.textContent = this.isCJKLanguage(document.getElementById('targetLang').value)
+            ? this.cleanCJKSpaces(fullTranslatedText)
+            : fullTranslatedText;
+        newR.appendChild(tEl);
+        newP.appendChild(newR);
+
+        // Insert new paragraph after the original
+        pNode.parentNode.insertBefore(newP, pNode.nextSibling);
+    },
+
+    fixLanguageAttribute(tNode, langCode) {
+        if (!tNode || !langCode) return;
+        try {
+            const rNode = tNode.parentNode; if (!rNode || rNode.localName !== 'r') return;
+            const ns = rNode.namespaceURI;
+            let rPr = rNode.getElementsByTagNameNS(ns, 'rPr')[0];
+            if (!rPr) { const prefix = ns === NS.w ? 'w:rPr' : 'a:rPr'; rPr = rNode.ownerDocument.createElementNS(ns, prefix); rNode.insertBefore(rPr, rNode.firstChild); }
+            rPr.setAttribute('lang', langCode); rPr.setAttribute('altLang', 'en-US'); rPr.setAttribute('dirty', '0');
+            // #005: Also fix <a:endParaRPr> in the same paragraph
+            let pNode = rNode.parentNode;
+            while (pNode && pNode.localName !== 'p') pNode = pNode.parentNode;
+            if (pNode) {
+                const endRPr = pNode.getElementsByTagNameNS(ns, 'endParaRPr')[0];
+                if (endRPr) { endRPr.setAttribute('lang', langCode); endRPr.setAttribute('altLang', 'en-US'); endRPr.setAttribute('dirty', '0'); }
+            }
+        } catch (e) {}
+    },
+
+    autoAdjustFontSize(tNode, srcText, tgtText) {
+        if (!tNode) return;
+        const srcLen = this.stripTags(srcText).length, tgtLen = this.stripTags(tgtText).length;
+        if (srcLen === 0 || tgtLen <= srcLen * 1.3) return;
+        try {
+            const rNode = tNode.parentNode; if (!rNode || rNode.localName !== 'r') return;
+            const ns = rNode.namespaceURI;
+            let rPr = rNode.getElementsByTagNameNS(ns, 'rPr')[0]; if (!rPr) return;
+            const curSz = parseInt(rPr.getAttribute('sz') || '1800');
+            const ratio = srcLen / tgtLen;
+            const scaleFactor = Math.max(0.85, Math.min(0.95, ratio));
+            const newSz = Math.max(800, Math.round(curSz * scaleFactor));
+            if (newSz < curSz) rPr.setAttribute('sz', newSz.toString());
+        } catch (e) {}
+    },
+
+    // ============================================================
+    // v19.1: DOCX HOPE (Heuristic Overflow Prevention Engine)
+    // ============================================================
+    applyDocxHOPE(cellSegs, tgtLang) {
+        if (!cellSegs?.length) return null;
+        const fs = cellSegs[0];
+        const m = fs.meta?.margins || { l: 68580, r: 68580, t: 0, b: 0 };
+        const cW = fs.meta?.cellWidth || 914400;
+        const cH = fs.meta?.cellHeight || 228600;
+        const cap = Math.max(cW - m.l - m.r, 1) * Math.max(cH - m.t - m.b, 1);
+
+        // Calculate total chars and max font size
+        let totalChars = 0, maxFontPt = 11; // Default 11pt for DOCX
+        cellSegs.forEach(s => {
+            totalChars += this.stripTags(s.target || s.source).length;
+            s.refs?.forEach(r => {
+                if (r.style?.size && r.style.size > maxFontPt) maxFontPt = r.style.size;
+            });
+        });
+
+        const K = this.isCJKLanguage(tgtLang) ? 1.0 : 0.6;
+        const fontEMU = maxFontPt * 12700; // pt to EMU
+        // NOTE: textVol uses EMU² per char (area proxy), density threshold calibrated accordingly
+        const textVol = totalChars * fontEMU * fontEMU * K;
+        const density = textVol / cap;
+
+        if (density < 1.2) return 'safe';
+
+        const shrinkR = density >= 1.5 ? 0.75 : 0.85;
+        const minSz = 16; // 8pt in half-points
+
+        // Shrink font sizes on all runs in this cell
+        cellSegs.forEach(s => {
+            s.refs?.forEach(r => {
+                if (r.type !== 'text' || !r.node) return;
+                const rN = r.node.parentNode;
+                if (!rN || rN.localName !== 'r') return;
+                const doc = rN.ownerDocument;
+                let rPr = rN.getElementsByTagNameNS(NS.w, 'rPr')[0];
+                if (!rPr) {
+                    rPr = doc.createElementNS(NS.w, 'w:rPr');
+                    rN.insertBefore(rPr, rN.firstChild);
+                }
+                // Read current w:sz (half-points), default to 22 (11pt)
+                let szEl = rPr.getElementsByTagNameNS(NS.w, 'sz')[0];
+                const curSz = szEl ? (parseInt(szEl.getAttributeNS(NS.w, 'val') || szEl.getAttribute('w:val') || '22') || 22) : 22;
+                const newSz = Math.max(minSz, Math.round(curSz * shrinkR));
+                if (newSz < curSz) {
+                    if (!szEl) { szEl = doc.createElementNS(NS.w, 'w:sz'); rPr.appendChild(szEl); }
+                    szEl.setAttributeNS(NS.w, 'w:val', newSz.toString());
+                    // Also set w:szCs for complex script
+                    let szCsEl = rPr.getElementsByTagNameNS(NS.w, 'szCs')[0];
+                    if (!szCsEl) { szCsEl = doc.createElementNS(NS.w, 'w:szCs'); rPr.appendChild(szCsEl); }
+                    szCsEl.setAttributeNS(NS.w, 'w:val', newSz.toString());
+                }
+            });
+        });
+
+        // For high density: apply w:tcFitText on the cell
+        if (density >= 1.5 && fs.meta?.tcNode) {
+            const tcNode = fs.meta.tcNode;
+            const doc = tcNode.ownerDocument;
+            let tcPr = tcNode.getElementsByTagNameNS(NS.w, 'tcPr')[0];
+            if (!tcPr) {
+                tcPr = doc.createElementNS(NS.w, 'w:tcPr');
+                tcNode.insertBefore(tcPr, tcNode.firstChild);
+            }
+            let fitText = tcPr.getElementsByTagNameNS(NS.w, 'tcFitText')[0];
+            if (!fitText) {
+                fitText = doc.createElementNS(NS.w, 'w:tcFitText');
+                tcPr.appendChild(fitText);
+            }
+            fitText.setAttributeNS(NS.w, 'w:val', 'true');
+            return 'clip';
+        }
+        return 'shrink';
+    },
+
+    // ============================================================
+    // PPTX Chart Module
+    // ============================================================
+    chart: {
+        chartCounter: 0,
+        reset() { this.chartCounter = 0; },
+        async parseChartsForSlide(slidePath) {
+            const slideDir = slidePath.substring(0, slidePath.lastIndexOf('/'));
+            const slideName = slidePath.substring(slidePath.lastIndexOf('/') + 1);
+            const relsPath = `${slideDir}/_rels/${slideName}.rels`;
+            if (!ENGINE.zip.file(relsPath)) return;
+            const relsDoc = safeParseXml(await ENGINE.zip.file(relsPath).async('string'));
+            if (!relsDoc) return;
+            const m = slidePath.match(/slide(\d+)\.xml$/i);
+            const slideId = m ? `slide${m[1]}` : slidePath;
+            for (let rel of relsDoc.getElementsByTagName('Relationship')) {
+                const type = rel.getAttribute('Type');
+                if (type && type.includes('/chart')) {
+                    const target = rel.getAttribute('Target');
+                    const chartPath = ENGINE.normalizePath(slidePath, target);
+                    if (chartPath) await this.parseChartXml(chartPath, slideId);
+                }
+            }
+        },
+        async parseChartXml(chartPath, slideId) {
+            const file = ENGINE.zip.file(chartPath);
+            if (!file) { console.warn('[Chart] Not found:', chartPath); return; }
+            try {
+                const doc = safeParseXml(await file.async('string'));
+                if (!doc) return;
+                ENGINE.parsedDOMs[chartPath] = doc;
+                const chartId = `chart_${this.chartCounter++}`;
+                const baseMeta = { containerType: 'chart', file: chartPath, slideId, chartId };
+                // Title
+                for (let title of doc.getElementsByTagNameNS(NS.c, 'title')) {
+                    if (title.parentNode?.localName !== 'chart') continue;
+                    const rich = title.getElementsByTagNameNS(NS.c, 'rich')[0];
+                    if (rich) ENGINE._parseChartRichText(rich, { ...baseMeta, role: 'chartTitle' });
+                }
+                // Axis titles
+                for (let axType of ['catAx','valAx','serAx','dateAx']) {
+                    for (let axis of doc.getElementsByTagNameNS(NS.c, axType)) {
+                        const atitle = axis.getElementsByTagNameNS(NS.c, 'title')[0];
+                        if (!atitle) continue;
+                        const rich = atitle.getElementsByTagNameNS(NS.c, 'rich')[0];
+                        if (rich) ENGINE._parseChartRichText(rich, { ...baseMeta, role: 'axisTitle', axisType: axType });
+                    }
+                }
+                // Series names
+                for (let ser of doc.getElementsByTagNameNS(NS.c, 'ser')) {
+                    const tx = ser.getElementsByTagNameNS(NS.c, 'tx')[0]; if (!tx) continue;
+                    const rich = tx.getElementsByTagNameNS(NS.c, 'rich')[0];
+                    if (rich) { ENGINE._parseChartRichText(rich, { ...baseMeta, role: 'legendLabel' }); continue; }
+                    const strCache = tx.getElementsByTagNameNS(NS.c, 'strCache')[0];
+                    if (strCache) {
+                        for (let pt of strCache.getElementsByTagNameNS(NS.c, 'pt')) {
+                            const v = pt.getElementsByTagNameNS(NS.c, 'v')[0];
+                            if (v?.textContent.trim() && !NUMERIC_RE.test(v.textContent.trim())) {
+                                ENGINE.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'legendLabel' } });
+                                ENGINE.stats.chartStats.legends++;
+                            }
+                        }
+                    } else {
+                        const v = tx.getElementsByTagNameNS(NS.c, 'v')[0];
+                        if (v?.textContent.trim() && !NUMERIC_RE.test(v.textContent.trim())) {
+                            ENGINE.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'legendLabel' } });
+                            ENGINE.stats.chartStats.legends++;
+                        }
+                    }
+                }
+                // Category labels
+                const processedCats = new Set();
+                for (let ser of doc.getElementsByTagNameNS(NS.c, 'ser')) {
+                    const cat = ser.getElementsByTagNameNS(NS.c, 'cat')[0]; if (!cat) continue;
+                    const strCache = cat.getElementsByTagNameNS(NS.c, 'strCache')[0]; if (!strCache) continue;
+                    for (let pt of strCache.getElementsByTagNameNS(NS.c, 'pt')) {
+                        const v = pt.getElementsByTagNameNS(NS.c, 'v')[0];
+                        if (!v?.textContent.trim() || NUMERIC_RE.test(v.textContent.trim())) continue;
+                        const key = `${chartId}|cat|${v.textContent}`;
+                        if (processedCats.has(key)) continue; processedCats.add(key);
+                        ENGINE.addSegment({ source: `{{0}}${v.textContent}{{/0}}`, target: "", refs: [{ node: v, style: null, type: 'text' }], meta: { ...baseMeta, role: 'categoryLabel' } });
+                        ENGINE.stats.chartStats.categories++;
+                    }
+                }
+                // Data labels
+                for (let dLbls of doc.getElementsByTagNameNS(NS.c, 'dLbls')) {
+                    for (let dLbl of dLbls.getElementsByTagNameNS(NS.c, 'dLbl')) {
+                        const tx = dLbl.getElementsByTagNameNS(NS.c, 'tx')[0]; if (!tx) continue;
+                        const rich = tx.getElementsByTagNameNS(NS.c, 'rich')[0];
+                        if (rich) { ENGINE._parseChartRichText(rich, { ...baseMeta, role: 'dataLabel' }); ENGINE.stats.chartStats.dataLabels++; }
+                    }
+                }
+            } catch (e) { console.error('[Chart]', chartPath, e); ENGINE.stats.errors.push({ type: 'chart', path: chartPath, error: e.message }); }
+        }
+    },
+
+    // ============================================================
+    // PPTX VGM Table Module
+    // ============================================================
+    table: {
+        tableCounter: 0,
+        reset() { this.tableCounter = 0; },
+        buildVirtualGrid(tblNode) {
+            const gridCols = tblNode.getElementsByTagNameNS(NS.a, 'gridCol');
+            const colWidths = Array.from(gridCols).map(c => parseInt(c.getAttribute('w') || '914400'));
+            const totalCols = colWidths.length;
+            if (totalCols === 0) return [];
+            const matrix = [], rows = tblNode.getElementsByTagNameNS(NS.a, 'tr');
+            Array.from(rows).forEach((tr, r) => {
+                if (!matrix[r]) matrix[r] = new Array(totalCols).fill(null);
+                const rowH = parseInt(tr.getAttribute('h') || '370840');
+                const cells = Array.from(tr.children).filter(n => n.localName === 'tc');
+                let xmlPtr = 0;
+                for (let c = 0; c < totalCols; c++) {
+                    if (matrix[r][c]?.type === 'SPANNED_V') {
+                        if (xmlPtr < cells.length && (cells[xmlPtr].getAttribute('vMerge') === '1' || cells[xmlPtr].getAttribute('vMerge') === 'true')) xmlPtr++;
+                        continue;
+                    }
+                    if (matrix[r][c]?.type === 'SPANNED_H') continue;
+                    if (xmlPtr >= cells.length) break;
+                    const tc = cells[xmlPtr];
+                    const gSpan = parseInt(tc.getAttribute('gridSpan') || '1');
+                    const rSpan = parseInt(tc.getAttribute('rowSpan') || '1');
+                    const hM = tc.getAttribute('hMerge'), vM = tc.getAttribute('vMerge');
+                    const cellW = colWidths.slice(c, c + gSpan).reduce((a, b) => a + b, 0);
+                    const tcPr = tc.getElementsByTagNameNS(NS.a, 'tcPr')[0];
+                    const margins = {
+                        l: parseInt(tcPr?.getAttribute('marL') || '91440'),
+                        r: parseInt(tcPr?.getAttribute('marR') || '91440'),
+                        t: parseInt(tcPr?.getAttribute('marT') || '45720'),
+                        b: parseInt(tcPr?.getAttribute('marB') || '45720')
+                    };
+                    const cellData = { type: (hM || vM) ? 'PHANTOM' : 'ORIGIN', node: tc, row: r, col: c, gridSpan: gSpan, rowSpan: rSpan, width: cellW, height: rowH, margins, isHeader: r === 0 };
+                    matrix[r][c] = cellData;
+                    for (let i = 1; i < gSpan; i++) if (c + i < totalCols) matrix[r][c + i] = { type: 'SPANNED_H', master: cellData };
+                    for (let k = 1; k < rSpan; k++) {
+                        if (!matrix[r + k]) matrix[r + k] = new Array(totalCols).fill(null);
+                        for (let i = 0; i < gSpan; i++) if (c + i < totalCols) matrix[r + k][c + i] = { type: 'SPANNED_V', master: cellData };
+                    }
+                    xmlPtr++; c += (gSpan - 1);
+                }
+            });
+            return matrix;
+        },
+        parseTableElement(tblNode, ct, filePath) {
+            const tableId = `tbl_${this.tableCounter++}`, matrix = this.buildVirtualGrid(tblNode);
+            const tblPr = tblNode.getElementsByTagNameNS(NS.a, 'tblPr')[0];
+            const hasHeader = tblPr?.getAttribute('firstRow') === '1';
+            matrix.forEach((row, rIdx) => { row.forEach((cell, cIdx) => {
+                if (!cell || cell.type !== 'ORIGIN' || !cell.node) return;
+                const txBody = cell.node.getElementsByTagNameNS(NS.a, 'txBody')[0]; if (!txBody) return;
+                Array.from(txBody.getElementsByTagNameNS(NS.a, 'p')).forEach((p, pIdx) => {
+                    const res = this.extractParagraphContent(p); if (!res.text.trim()) return;
+                    ENGINE.addSegment({ source: res.text, target: "", refs: res.refs, meta: {
+                        containerType: 'table', file: filePath, tableId, row: rIdx, col: cIdx, paraIdx: pIdx,
+                        gridSpan: cell.gridSpan, rowSpan: cell.rowSpan, cellWidth: cell.width, cellHeight: cell.height,
+                        margins: cell.margins, isHeader: hasHeader && rIdx === 0,
+                        cellKey: `${tableId}|r${rIdx}|c${cIdx}`, tcNode: cell.node,
+                        slideId: ENGINE.currentSlideId
+                    } });
+                });
+            }); });
+        },
+        extractParagraphContent(pNode) {
+            let fullText = ""; const refs = [];
+            for (let c of pNode.childNodes) {
+                if (c.localName === 'r') {
+                    const t = c.getElementsByTagNameNS(NS.a, 't')[0];
+                    if (t?.textContent.length > 0) { fullText += `{{${refs.length}}}${t.textContent}{{/${refs.length}}}`; refs.push({ node: t, style: ENGINE.extractRunStyle(c, NS.a), type: 'text' }); }
+                }
+            }
+            return { text: fullText, refs };
+        },
+        aggregateCellDensity(cellSegs, tgtLang) {
+            if (!cellSegs?.length) return null;
+            const fs = cellSegs[0], m = fs.meta?.margins || { l: 91440, r: 91440, t: 45720, b: 45720 };
+            const cW = fs.meta?.cellWidth || 914400, cH = fs.meta?.cellHeight || 370840;
+            const cap = (cW - m.l - m.r) * (cH - m.t - m.b);
+            if (cap <= 0) return { density: 999, totalChars: 0, maxFontSize: 1800 };
+            let totalChars = 0, maxFontSize = 800;
+            cellSegs.forEach(s => {
+                totalChars += ENGINE.stripTags(s.target || s.source).length;
+                s.refs?.forEach(r => {
+                    if (r.style?.size) { const sz = r.style.size * 100; if (sz > maxFontSize) maxFontSize = sz; }
+                    else if (r.node?.parentNode) { const rPr = r.node.parentNode.getElementsByTagNameNS?.(NS.a, 'rPr')?.[0]; const sz = parseInt(rPr?.getAttribute('sz') || '1800'); if (sz > maxFontSize) maxFontSize = sz; }
+                });
+            });
+            const K = ENGINE.isCJKLanguage(tgtLang) ? 1.0 : 0.6;
+            const fontEMU = (maxFontSize / 100) * 12700;
+            // NOTE: textVol uses EMU² per char (area proxy), density threshold calibrated accordingly
+            const textVol = totalChars * fontEMU * fontEMU * K;
+            return { density: textVol / cap, totalChars, maxFontSize, cellKey: fs.meta?.cellKey, tcNode: fs.meta?.tcNode, segments: cellSegs };
+        },
+        applyHOPE(cellData) {
+            if (!cellData || cellData.density < 1.2) return 'safe';
+            const { density, segments, tcNode } = cellData;
+            const shrinkR = density >= 1.5 ? 0.75 : 0.85, minSz = 800;
+            segments.forEach(s => { s.refs?.forEach(r => {
+                if (r.type !== 'text' || !r.node) return;
+                const rN = r.node.parentNode; if (!rN || rN.localName !== 'r') return;
+                let rPr = rN.getElementsByTagNameNS(NS.a, 'rPr')[0];
+                if (rPr) { const cur = parseInt(rPr.getAttribute('sz') || '1800'); if (cur > minSz) { rPr.setAttribute('sz', Math.max(minSz, Math.floor(cur * shrinkR)).toString()); rPr.setAttribute('dirty', '0'); } }
+            }); });
+            if (density >= 1.5 && tcNode) {
+                let tcPr = tcNode.getElementsByTagNameNS(NS.a, 'tcPr')[0];
+                if (!tcPr) {
+                    const doc = tcNode.ownerDocument; tcPr = doc.createElementNS(NS.a, 'a:tcPr');
+                    const txB = tcNode.getElementsByTagNameNS(NS.a, 'txBody')[0];
+                    if (txB) tcNode.insertBefore(tcPr, txB); else tcNode.insertBefore(tcPr, tcNode.firstChild);
+                }
+                tcPr.setAttribute('horzOverflow', 'clip');
+                return 'clip';
+            }
+            return 'shrink';
+        }
+    },
+
+    // ============================================================
+    // DOCX VGM Table Module (v19.1 — Phase 2A)
+    // ============================================================
+    docxTable: {
+        tableCounter: 0,
+        reset() { this.tableCounter = 0; },
+
+        // Helper: find direct child element by namespace and localName
+        findChildNS(parent, nsUri, localName) {
+            for (let c = parent.firstElementChild; c; c = c.nextElementSibling) {
+                if (c.namespaceURI === nsUri && c.localName === localName) return c;
+            }
+            return null;
+        },
+
+        // Helper: find all descendants by namespace
+        findAllNS(parent, nsUri, localName) {
+            return Array.from(parent.getElementsByTagNameNS(nsUri, localName));
+        },
+
+        // Read table-level default cell margins (w:tblPr > w:tblCellMar)
+        readTableDefaultMargins(tblNode) {
+            const defaults = { l: 68580, r: 68580, t: 0, b: 0 }; // Word defaults: 108 twips L/R, 0 T/B
+            const tblPr = this.findChildNS(tblNode, NS.w, 'tblPr');
+            if (!tblPr) return defaults;
+            const tblCellMar = this.findChildNS(tblPr, NS.w, 'tblCellMar');
+            if (!tblCellMar) return defaults;
+            const readM = (name) => {
+                const el = this.findChildNS(tblCellMar, NS.w, name);
+                return el ? (parseInt(el.getAttributeNS(NS.w, 'w') || el.getAttribute('w:w') || '0') || 0) * 635 : null;
+            };
+            const ml = readM('start') ?? readM('left'); if (ml !== null) defaults.l = ml;
+            const mr = readM('end') ?? readM('right'); if (mr !== null) defaults.r = mr;
+            const mt = readM('top'); if (mt !== null) defaults.t = mt;
+            const mb = readM('bottom'); if (mb !== null) defaults.b = mb;
+            return defaults;
+        },
+
+        // Read cell-level margins (w:tcPr > w:tcMar), fallback to table defaults
+        readCellMargins(tc, defaultMargins) {
+            const tcPr = this.findChildNS(tc, NS.w, 'tcPr');
+            const tcMar = tcPr ? this.findChildNS(tcPr, NS.w, 'tcMar') : null;
+            if (!tcMar) return { ...defaultMargins };
+            const margins = { ...defaultMargins };
+            const readM = (name) => {
+                const el = this.findChildNS(tcMar, NS.w, name);
+                return el ? (parseInt(el.getAttributeNS(NS.w, 'w') || el.getAttribute('w:w') || '0') || 0) * 635 : null;
+            };
+            const ml = readM('start') ?? readM('left'); if (ml !== null) margins.l = ml;
+            const mr = readM('end') ?? readM('right'); if (mr !== null) margins.r = mr;
+            const mt = readM('top'); if (mt !== null) margins.t = mt;
+            const mb = readM('bottom'); if (mb !== null) margins.b = mb;
+            return margins;
+        },
+
+        // Check if a w:tr is a header row
+        isHeaderRow(tr) {
+            const trPr = this.findChildNS(tr, NS.w, 'trPr');
+            return trPr ? !!this.findChildNS(trPr, NS.w, 'tblHeader') : false;
+        },
+
+        // Read row height from w:trPr > w:trHeight
+        readRowHeight(tr) {
+            const trPr = this.findChildNS(tr, NS.w, 'trPr');
+            if (!trPr) return 228600; // default ~0.25 inch
+            const trH = this.findChildNS(trPr, NS.w, 'trHeight');
+            if (!trH) return 228600;
+            const val = parseInt(trH.getAttributeNS(NS.w, 'val') || trH.getAttribute('w:val') || '360');
+            return (val || 360) * 635; // twips to EMU
+        },
+
+        // Two-pass VGM builder for DOCX w:tbl
+        buildDocxVirtualGrid(tblNode) {
+            // Step 1: Read grid definition
+            const tblGrid = this.findChildNS(tblNode, NS.w, 'tblGrid');
+            if (!tblGrid) return { grid: [], colWidths: [], rowHeights: [], trNodes: [] };
+            const gridColNodes = this.findAllNS(tblGrid, NS.w, 'gridCol');
+            const colCount = gridColNodes.length;
+            if (colCount === 0) return { grid: [], colWidths: [], rowHeights: [], trNodes: [] };
+            const colWidths = gridColNodes.map(g => {
+                const w = parseInt(g.getAttributeNS(NS.w, 'w') || g.getAttribute('w:w') || '0');
+                return (w || 0) * 635; // twips to EMU
+            });
+
+            // Step 2: Read table-level default margins
+            const defaultMargins = this.readTableDefaultMargins(tblNode);
+
+            // Step 3: Read rows
+            const trNodes = [];
+            for (let c = tblNode.firstElementChild; c; c = c.nextElementSibling) {
+                if (c.localName === 'tr' && c.namespaceURI === NS.w) trNodes.push(c);
+            }
+            const rowCount = trNodes.length;
+            const rowHeights = trNodes.map(tr => this.readRowHeight(tr));
+
+            // PASS 1: Place cells in grid
+            const grid = [];
+            for (let r = 0; r < rowCount; r++) {
+                if (!grid[r]) grid[r] = new Array(colCount).fill(null);
+                const tr = trNodes[r];
+                const isHdr = this.isHeaderRow(tr);
+                const cells = [];
+                for (let c = tr.firstElementChild; c; c = c.nextElementSibling) {
+                    if (c.localName === 'tc' && c.namespaceURI === NS.w) cells.push(c);
+                }
+                let xmlPtr = 0;
+                for (let col = 0; col < colCount && xmlPtr < cells.length; col++) {
+                    // Skip already occupied positions
+                    if (grid[r][col] !== null) continue;
+
+                    const tc = cells[xmlPtr++];
+                    const tcPr = this.findChildNS(tc, NS.w, 'tcPr');
+
+                    // Read gridSpan
+                    const gridSpanEl = tcPr ? this.findChildNS(tcPr, NS.w, 'gridSpan') : null;
+                    const gridSpan = gridSpanEl ? (parseInt(gridSpanEl.getAttributeNS(NS.w, 'val') || gridSpanEl.getAttribute('w:val') || '1') || 1) : 1;
+
+                    // Read vMerge
+                    const vMergeEl = tcPr ? this.findChildNS(tcPr, NS.w, 'vMerge') : null;
+                    let cellType;
+                    if (vMergeEl) {
+                        const vVal = vMergeEl.getAttributeNS(NS.w, 'val') || vMergeEl.getAttribute('w:val') || '';
+                        cellType = (vVal === 'restart') ? 'ORIGIN_PENDING' : 'SPANNED_V';
+                    } else {
+                        cellType = 'ORIGIN'; // No vMerge means normal cell
+                    }
+
+                    // Calculate cell width from grid columns
+                    const cellWidth = colWidths.slice(col, Math.min(col + gridSpan, colCount)).reduce((a, b) => a + b, 0);
+
+                    // Read cell margins
+                    const margins = this.readCellMargins(tc, defaultMargins);
+
+                    const cellData = {
+                        type: cellType, tc, row: r, col,
+                        gridSpan, rowSpan: 1, // Will be resolved in pass 2 for ORIGIN_PENDING
+                        cellWidth, cellHeight: rowHeights[r],
+                        margins, isHeader: isHdr
+                    };
+                    grid[r][col] = cellData;
+
+                    // Mark horizontal span
+                    for (let i = 1; i < gridSpan && col + i < colCount; i++) {
+                        grid[r][col + i] = { type: 'SPANNED_H', master: cellData };
+                    }
+                }
+            }
+
+            // PASS 2: Resolve vMerge rowSpan
+            for (let r = 0; r < rowCount; r++) {
+                for (let c = 0; c < colCount; c++) {
+                    const cell = grid[r][c];
+                    if (!cell || cell.type !== 'ORIGIN_PENDING') continue;
+
+                    // Count consecutive SPANNED_V cells below
+                    let span = 1;
+                    for (let rr = r + 1; rr < rowCount; rr++) {
+                        if (grid[rr]?.[c]?.type === 'SPANNED_V') {
+                            grid[rr][c].master = cell; // Link to master
+                            span++;
+                        } else break;
+                    }
+                    cell.type = 'ORIGIN';
+                    cell.rowSpan = span;
+                    // Calculate total cell height across spanned rows
+                    cell.cellHeight = rowHeights.slice(r, r + span).reduce((a, b) => a + b, 0);
+                }
+            }
+
+            return { grid, colWidths, rowHeights, trNodes, defaultMargins };
+        },
+
+        // Parse a DOCX table element with VGM
+        parseDocxTable(tblNode, containerType, filePath) {
+            const tableId = `docx_tbl_${this.tableCounter++}`;
+            const { grid, colWidths } = this.buildDocxVirtualGrid(tblNode);
+            if (!grid.length || !colWidths.length) return;
+
+            const rowCount = grid.length, colCount = colWidths.length;
+            for (let r = 0; r < rowCount; r++) {
+                for (let c = 0; c < colCount; c++) {
+                    const cell = grid[r][c];
+                    if (!cell || cell.type !== 'ORIGIN' || !cell.tc) continue;
+
+                    // Get DIRECT child paragraphs only (skip nested tables)
+                    const directParas = [];
+                    for (let child = cell.tc.firstElementChild; child; child = child.nextElementSibling) {
+                        if (child.localName === 'p' && child.namespaceURI === NS.w) directParas.push(child);
+                    }
+
+                    directParas.forEach((p, pIdx) => {
+                        ENGINE.walkDocxParagraph(p, 'table', {
+                            tableId, row: r, col: c, paraIdx: pIdx,
+                            gridSpan: cell.gridSpan, rowSpan: cell.rowSpan,
+                            cellWidth: cell.cellWidth, cellHeight: cell.cellHeight,
+                            margins: cell.margins, isHeader: cell.isHeader,
+                            cellKey: `${tableId}|r${r}|c${c}`, tcNode: cell.tc
+                        });
+                    });
+
+                    // Parse nested tables recursively
+                    for (let child = cell.tc.firstElementChild; child; child = child.nextElementSibling) {
+                        if (child.localName === 'tbl' && child.namespaceURI === NS.w) {
+                            this.parseDocxTable(child, 'table', filePath);
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    // ============================================================
+    // SCR Module (Semantic Context Reconstruction) — PPTX only
+    // ============================================================
+    scr: {
+        reconstructContext(segs) {
+            if (!segs?.length) return segs;
+            const bySlide = new Map();
+            segs.forEach(s => { const sid = s.meta?.slideId || 'unknown'; if (!bySlide.has(sid)) bySlide.set(sid, []); bySlide.get(sid).push(s); });
+            const result = [];
+            for (const [slideId, slideSegs] of bySlide) {
+                const { grouped, ungrouped } = this.groupByHardSignals(slideSegs);
+                const columnGroups = this.applyXYCut(ungrouped, slideId);
+                [...grouped, ...columnGroups.flat()].forEach(s => { if (!s.meta) s.meta = {}; if (!s.meta.role) s.meta.role = this.inferRole(s); });
+                result.push(...grouped);
+                columnGroups.forEach((col, colIdx) => { col.forEach(s => { s.meta.groupId = s.meta.groupId || `${slideId}_col${colIdx}`; }); result.push(...col); });
+            }
+            return result;
+        },
+        groupByHardSignals(segs) {
+            const grouped = [], ungrouped = [];
+            segs.forEach(s => {
+                const ct = s.meta?.containerType;
+                if (ct === 'chart' && s.meta?.chartId) { s.meta.groupId = s.meta.chartId; grouped.push(s); return; }
+                if (ct === 'smartart') { s.meta.groupId = s.meta.file; if (!s.meta.role) s.meta.role = 'smartartNode'; grouped.push(s); return; }
+                if (ct === 'table' && s.meta?.tableId) { s.meta.groupId = s.meta.tableId; s.meta.role = s.meta.isHeader ? 'tableHeader' : 'tableCell'; grouped.push(s); return; }
+                if (s.meta?.grpSpId) { s.meta.groupId = s.meta.grpSpId; grouped.push(s); return; }
+                if (s.meta?.phType) {
+                    const pt = s.meta.phType;
+                    if (['title','ctrTitle'].includes(pt)) { s.meta.role = 'title'; s.meta.groupId = `${s.meta.slideId}_title`; }
+                    else if (['ftr','dt','sldNum'].includes(pt)) { s.meta.role = 'footer'; s.meta.groupId = `${s.meta.slideId}_footer`; }
+                    grouped.push(s); return;
+                }
+                ungrouped.push(s);
+            });
+            return { grouped, ungrouped };
+        },
+        applyXYCut(segs, slideId) {
+            if (segs.length < 2) return [segs];
+            const withPos = segs.filter(s => s.meta?.position), noPos = segs.filter(s => !s.meta?.position);
+            if (withPos.length < 2) return [segs];
+            const slideW = 9144000, gapT = slideW * 0.05;
+            const intervals = withPos.map(s => ({ left: s.meta.position.x, right: s.meta.position.x + (s.meta.position.width || 0), segment: s })).sort((a, b) => a.left - b.left);
+            let maxGap = { width: 0, center: slideW / 2 };
+            for (let i = 0; i < intervals.length - 1; i++) {
+                const gS = intervals[i].right, gE = intervals[i + 1].left, gW = gE - gS;
+                if (gW > maxGap.width && gW > gapT) maxGap = { width: gW, center: (gS + gE) / 2 };
+            }
+            if (maxGap.width <= gapT) {
+                withPos.sort((a, b) => { const yD = (a.meta.position?.y || 0) - (b.meta.position?.y || 0); return Math.abs(yD) > 50000 ? yD : (a.meta.position?.x || 0) - (b.meta.position?.x || 0); });
+                return [[...withPos, ...noPos]];
+            }
+            const splitX = maxGap.center, leftCol = [], rightCol = [];
+            withPos.forEach(s => { const cX = s.meta.position.x + (s.meta.position.width || 0) / 2; if (cX < splitX) leftCol.push(s); else rightCol.push(s); });
+            const sortY = (a, b) => (a.meta.position?.y || 0) - (b.meta.position?.y || 0);
+            leftCol.sort(sortY); rightCol.sort(sortY);
+            leftCol.push(...noPos);
+            return [leftCol, rightCol].filter(c => c.length > 0);
+        },
+        inferRole(s) {
+            if (s.meta?.role) return s.meta.role;
+            const ct = s.meta?.containerType;
+            if (ct === 'chart' || ct === 'docx-chart') return 'chartElement';
+            if (ct === 'smartart' || ct === 'docx-smartart') return 'smartartNode';
+            if (ct === 'table') return s.meta?.isHeader ? 'tableHeader' : 'tableCell';
+            if (ct === 'notes') return 'notes';
+            if (ct === 'comment') return 'comment';
+            const pos = s.meta?.position;
+            if (pos) {
+                const slideH = 6858000, yR = pos.y / slideH;
+                if (yR < 0.15 && s.refs?.some(r => r.style?.b || (r.style?.size || 18) > 24)) return 'title';
+                if (yR > 0.90) return 'footer';
+            }
+            const t = ENGINE.stripTags(s.source);
+            if (t && t.length < 50 && /^(Figure|Table|圖|表|Fig\.|Tab\.)\s*\d*/i.test(t)) return 'caption';
+            return 'body';
+        }
+    }
+};
+
+// ============================================================
+// Cross-Segment Context Polisher (v19.2 — ported from v19.0)
+// Uses [SEG]/[POL] structured protocol for cross-segment audit
+// ============================================================
+const ContextPolisher = {
+    MAX_BATCH_CHARS: 6000,
+    CONCURRENCY: 2,
+
+    _buildSystemPrompt(tgtLang) {
+        const langRules = {
+            'zh-TW': '## 在地化約束 (zh-TW)\n- 採用繁體中文（台灣）標準用語，避免大陸慣用詞彙（如「信息→資訊」「網絡→網路」「軟件→軟體」）。\n- 使用 SI 單位與半形數字、半形括號。\n- 術語以 CNS／IEC／IEEE 為準。',
+            'zh-CN': '## 本地化约束 (zh-CN)\n- 使用简体中文（大陆）标准用语。\n- 术语以 GB 标准为准。',
+            'en': '## Localization (en)\n- Use standard American English conventions.\n- Preserve technical terms in their original English form.',
+            'ja': '## ローカライゼーション (ja)\n- 自然な日本語表現を使用。敬体・常体は原文に合わせる。\n- 外来語はカタカナ表記。',
+            'ko': '## 현지화 (ko)\n- 자연스러운 한국어 표현 사용。\n- 외래어는 한국어 표기법에 따른다.'
+        };
+        const localRule = langRules[tgtLang] || langRules['en'];
+
+        return `## 角色
+你是「翻譯品質稽核官」，專責提升譯文的精準度、流暢度與在地化品質。
+
+## 核心任務
+- 審閱每一組「原文＋譯文」，產出優化後的譯文。
+- 可進行全域最佳化與風格統整；必要時可完整重寫譯文。
+- 禁止擴張作者意圖或新增未提供事實。
+
+${localRule}
+
+## ★ 跨段落語境審閱（最高優先）
+你收到的是同一份文件中多個段落的翻譯。原始翻譯是逐段產生的，因此極可能存在以下「斷裂語境」問題——這是你最重要的修正職責：
+
+1. **代名詞／性別錯配**：原文語言可能缺乏性別區分（如匈牙利語 ő、中文「他」「她」不分、土耳其語 o），導致譯文性別錯誤。請根據上下文中出現的人名、職稱、描述來推斷正確性別並修正。
+2. **術語一致性**：同一專有名詞、品牌、機構在不同段落中必須使用完全相同的譯名。若發現不一致，統一為最恰當的版本。
+3. **指稱連貫**：「此方案」「該系統」「上述結果」等指稱詞，必須與前後段落中實際提及的對象一致。若原譯指稱斷裂，請修正。
+4. **語體與敬體統一**：整批段落應保持一致的文體（正式／半正式／口語）與人稱風格。
+5. **片段語法修復**：過短的段落可能產生不完整的語法結構，請結合上下文補正。
+
+## 五維評量標準
+1. 忠實度：避免過譯、漏譯、語氣或結構扭曲。
+2. 術語：在本批所有段落中保持一致的專業術語。
+3. 文體：依文本類型（新聞／學術／技術／行銷）調整語體，全批統一。
+4. 結構：保持原邏輯順序（背景→論點→證據→結論）。
+5. 流暢度：去除直譯痕跡，使譯文讀來自然。
+
+## 高風險檢核
+數字｜百分比｜日期｜人名｜機構｜地名｜法條｜版本號｜否定詞｜條件句｜比較級｜因果語｜代名詞性別。
+
+## 不更動原則
+- 同義詞偏好、合理在地化差異、小幅語氣差異 → 可保留原譯。
+- 若原譯已佳，直接輸出原譯即可，不必強改。
+
+## 嚴格輸出格式
+輸入格式為多組 [SEG n]，每組含 [SRC] 與 [TGT]。
+你必須對每組輸出對應的 [POL n]，內容為優化後的譯文。
+- 組數必須完全對應，不可多不可少。
+- 只寫優化後譯文，不要寫解釋、理由或報告。
+- 保留原文中的換行位置（\\n 數量必須一致）。`;
+    },
+
+    _formatInput(batch) {
+        return batch.map(({ idx, src, tgt }) =>
+            `[SEG ${idx}]\n[SRC] ${src}\n[TGT] ${tgt}`
+        ).join('\n\n');
+    },
+
+    _parseOutput(text) {
+        const results = new Map();
+        const regex = /\[POL\s+(\d+)\]\s*\n([\s\S]*?)(?=\[POL\s+\d+\]|$)/g;
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            const idx = parseInt(m[1], 10);
+            const content = m[2].trim();
+            if (content) results.set(idx, content);
+        }
+        return results;
+    },
+
+    async _callAPI(apiKey, systemPrompt, userContent, signal) {
+        const model = document.getElementById('model').value;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+            const combinedSignal = signal
+                ? AbortSignal.any([signal, AbortSignal.timeout(120000)])
+                : AbortSignal.timeout(120000);
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
+                        contents: [{ role: 'user', parts: [{ text: userContent }] }]
+                    }),
+                    signal: combinedSignal
+                });
+
+                if (res.status === 429 || res.status === 503) {
+                    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                    const retryAfter = parseInt(res.headers.get('Retry-After') || '4', 10);
+                    const delay = retryAfter * 1000 + Math.random() * 1000;
+                    await new Promise((resolve, reject) => {
+                        const timer = setTimeout(resolve, delay);
+                        if (signal) signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
+                    });
+                    continue;
+                }
+                if (!res.ok) {
+                    let errMsg = `HTTP ${res.status}`;
+                    try { const errJson = await res.json(); errMsg = errJson?.error?.message || errMsg; } catch {}
+                    throw new Error(`Polish API Error: ${errMsg}`);
+                }
+
+                const data = await res.json();
+                const candidate = data?.candidates?.[0];
+                if (!candidate || candidate.finishReason === 'SAFETY' || !candidate.content?.parts?.[0]?.text) {
+                    throw new Error(`Polish API no content (finishReason: ${candidate?.finishReason ?? 'unknown'})`);
+                }
+                return candidate.content.parts[0].text;
+            } catch (e) {
+                if (e.name === 'AbortError') throw e;
+                if (attempt === 2) throw e;
+                await new Promise(r => setTimeout(r, 2000 * (attempt + 1) + Math.random() * 500));
+            }
+        }
+    },
+
+    async polish(apiKey, segments, tgtLang, onProgress, signal) {
+        const translatedSegs = segments.filter(s => s.target?.trim());
+        if (translatedSegs.length === 0) throw new Error('No translated segments to polish');
+
+        const systemPrompt = this._buildSystemPrompt(tgtLang);
+        let completed = 0, changed = 0;
+        const total = translatedSegs.length;
+
+        // Build batches respecting char limit
+        const batches = [];
+        let currentBatch = [], currentChars = 0;
+
+        translatedSegs.forEach(seg => {
+            const srcText = ENGINE.stripTags(seg.source);
+            const tgtText = ENGINE.stripTags(seg.target);
+            const entry = { idx: seg.id, src: srcText, tgt: tgtText };
+            const entryChars = entry.src.length + entry.tgt.length + 30;
+
+            if (currentBatch.length > 0 && currentChars + entryChars > this.MAX_BATCH_CHARS) {
+                batches.push(currentBatch);
+                currentBatch = [];
+                currentChars = 0;
+            }
+            currentBatch.push(entry);
+            currentChars += entryChars;
+        });
+        if (currentBatch.length > 0) batches.push(currentBatch);
+
+        console.log(`[ContextPolish] ${total} segments in ${batches.length} batches`);
+
+        for (let i = 0; i < batches.length; i += this.CONCURRENCY) {
+            if (signal?.aborted) break;
+            const chunk = batches.slice(i, i + this.CONCURRENCY);
+            await Promise.all(chunk.map(async (batch) => {
+                if (signal?.aborted) return;
+                try {
+                    const userContent = this._formatInput(batch);
+                    const rawOutput = await this._callAPI(apiKey, systemPrompt, userContent, signal);
+                    const polished = this._parseOutput(rawOutput);
+
+                    batch.forEach(({ idx }) => {
+                        const seg = ENGINE.getSegmentById(idx);
+                        if (!seg) return;
+
+                        const polishedText = polished.get(idx);
+                        if (polishedText) {
+                            const oldTarget = ENGINE.stripTags(seg.target);
+                            if (polishedText !== oldTarget) {
+                                // v19.2: Improved tag re-wrapping — distribute text across tags
+                                // instead of stuffing everything into {{0}}
+                                if (seg.refs?.length === 1) {
+                                    seg.target = `{{0}}${polishedText}{{/0}}`;
+                                } else if (seg.refs?.length > 1) {
+                                    // Split proportionally across original tag boundaries
+                                    const origMatches = [...seg.target.matchAll(TAG_REGEX)];
+                                    const origLengths = origMatches.map(m => m[2].length);
+                                    const totalOrigLen = origLengths.reduce((a, b) => a + b, 0) || 1;
+                                    let rebuilt = '', pos = 0;
+                                    for (let j = 0; j < seg.refs.length; j++) {
+                                        const proportion = (origLengths[j] || 0) / totalOrigLen;
+                                        const charCount = j < seg.refs.length - 1
+                                            ? Math.round(polishedText.length * proportion)
+                                            : polishedText.length - pos;
+                                        rebuilt += `{{${j}}}${polishedText.slice(pos, pos + charCount)}{{/${j}}}`;
+                                        pos += charCount;
+                                    }
+                                    seg.target = rebuilt;
+                                } else {
+                                    seg.target = polishedText;
+                                }
+                                changed++;
+                            }
+                        }
+                        completed++;
+                        ENGINE.uiUpdateQueue.push(idx);
+                    });
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                    console.error('Context polish batch failed:', e.message);
+                    completed += batch.length;
+                }
+                if (onProgress) onProgress(completed, total, changed);
+                ENGINE.flushUIUpdates();
+            }));
+        }
+
+        return { total, completed, changed };
+    }
+};
+
+// ============================================================
+// Initialization
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    ENGINE.init();
+    console.log('翻 v19.3 Precision Edition — Style & Parse Enhanced');
+    console.log('  v19.3 Changes:');
+    console.log('   ├─ [P0] extractRunStyle PPTX: +schemeClr/hlinkClick/strike/shadow/lang/altLang/baseline');
+    console.log('   ├─ [P0] extractRunStyle DOCX: +strike/baseline (vertAlign)');
+    console.log('   ├─ [P0] Merged Run write-back: remove empty <a:r> nodes (ghost whitespace fix)');
+    console.log('   ├─ [P1] getStyleFingerprint: +strike/schemeColor/hyperlink/shadow/lang');
+    console.log('   ├─ [P1] renderWithTags: +strike/baseline/hyperlink visualization');
+    console.log('   ├─ [P1] visitNode: +cxnSp (connector shape) traversal');
+    console.log('   ├─ [P1] DOCX walkDocxParagraph: +ruby (振り仮名) / fldSimple (skip auto-fields)');
+    console.log('   └─ [P1] Chart _parseChartRichText: handle <a:br> line breaks');
+    console.log('  Inherited from v19.2:');
+    console.log('   ├─ Cross-Segment Context Polisher / Dual polish mode');
+    console.log('   ├─ SDT Three-Layer Defense / DOCX SmartArt & Chart');
+    console.log('   ├─ VGM + HOPE + SCR (PPTX + DOCX)');
+    console.log('   └─ Pre-Analysis / Adjacent Context / Tag order relaxation');
+});
+</script>
+</body>
+</html>
