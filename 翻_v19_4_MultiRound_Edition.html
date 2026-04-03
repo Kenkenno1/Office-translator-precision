@@ -779,7 +779,7 @@ const UI = {
             card.className = 'seg-card';
             card.dataset.segId = s.id;
             if (useAnim) card.style.animationDelay = `${Math.min(i * 0.03, 3)}s`;
-            else card.style.animation = 'none';
+            else { card.style.animation = 'none'; card.style.opacity = '1'; }
             card.innerHTML = `<div class="seg-id">${s.id+1}</div><div class="seg-text">${this.renderWithTags(s.source, s.refs)}${badge}</div><div class="seg-text seg-tgt">${this.renderWithTags(s.target, s.refs)}</div>`;
             frag.appendChild(card);
         }
@@ -1026,7 +1026,7 @@ const ENGINE = {
         this.originalFileName = f.name;
         UI.showProgress(true, 10, 100, '讀取檔案...');
         try {
-            this.segments = []; this.segmentMap.clear(); this.parsedDOMs = {}; this.relMap = {};
+            this.segments = []; this.segmentMap.clear(); this.parsedDOMs = {}; this.relMap = {}; this.zip = null;
             this.resetStats(); this.table.reset(); this.chart.reset(); this.docxTable.reset();
             const ext = f.name.split('.').pop().toLowerCase();
             this.fileType = ext;
@@ -2179,7 +2179,9 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
         for (const ac of this.aborters) ac.abort();
         this.aborters.clear();
         UI.showProgress(false);
-        this._busy = false;
+        // NOTE: do NOT set _busy = false here — let the running operation's
+        // finally block handle it, preventing race conditions if user
+        // immediately starts a new operation.
     },
     translate() { this.runBatchProcess('translate'); },
     polish() {
@@ -2434,13 +2436,15 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
         const apiKey = document.getElementById('apiKey').value.trim();
         if (!apiKey) return showToast('請先輸入 API Key', 'warn');
         this._busy = true;
+        const sessionId = ++this._sessionId;
         try {
             this.saveKey();
             this.stopRequested = false;
+            this.aborters.clear();
             const tgtName = document.getElementById('targetLang').value;
             const tgtC = this.getLangCodeFromName(tgtName) || 'zh-TW';
             const translatedSegs = this.segments.filter(s => s.target?.trim());
-            if (translatedSegs.length === 0) { showToast('請先翻譯', 'warn'); return; }
+            if (translatedSegs.length === 0) { showToast('請先翻譯', 'warn'); this._busy = false; return; }
 
             this.perfMetrics = { startTime: Date.now(), batchCount: 0, repairCount: 0 };
             UI.showProgress(true, 0, translatedSegs.length, '🧠 跨段語境潤稿中');
@@ -2452,10 +2456,12 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
             const result = await ContextPolisher.polish(
                 apiKey, this.segments, tgtC,
                 (done, total, changed) => {
+                    if (sessionId !== this._sessionId) return;
                     UI.showProgress(true, done, total, `🧠 潤稿中 (${changed} 段已優化)`);
                 },
                 ac.signal
             );
+            if (sessionId !== this._sessionId) return;
             console.log(`[ContextPolish] Done: ${result.total} segs, ${result.changed} changed`);
 
             const elapsed = Date.now() - this.perfMetrics.startTime;
@@ -2479,7 +2485,6 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
                 showToast('潤稿失敗：' + e.message, 'error', 5000);
             }
         } finally {
-            this.aborters.forEach(ac => {}); // keep existing aborters
             this._busy = false;
         }
     },
@@ -2489,7 +2494,7 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
     // ============================================================
     async download() {
         if (this._busy) { showToast('操作進行中，請稍候', 'warn'); return; }
-        if (!this.zip) { showToast('檔案資料已釋放，請重新「解析」後再下載', 'warn'); return; }
+        if (!this.zip && this.fileType !== 'txt') { showToast('檔案資料已釋放，請重新「解析」後再下載', 'warn'); return; }
         this._busy = true;
         try {
         UI.showProgress(true, 0, 100, '打包檔案...');
@@ -2512,31 +2517,6 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
         if (dlMode === 'bilingual' && this.fileType !== 'pptx' && this.fileType !== 'docx') {
             dlMode = 'translated';
             bilingualDowngraded = true;
-        }
-
-        // HOPE processing (PPTX tables)
-        if (useHOPE && this.fileType === 'pptx') {
-            UI.showProgress(true, 15, 100, '套用 HOPE...');
-            const cellMap = new Map();
-            this.segments.forEach(s => { if (s.meta?.containerType === 'table' && s.meta?.cellKey) { const k = s.meta.cellKey; if (!cellMap.has(k)) cellMap.set(k, []); cellMap.get(k).push(s); } });
-            for (const [, cSegs] of cellMap) { const cd = this.table.aggregateCellDensity(cSegs, tgtLangName); if (cd) { const st = this.table.applyHOPE(cd); this.stats.hopeStats[st]++; } }
-        }
-
-        // v19.1: DOCX HOPE processing
-        if (useHOPE && this.fileType === 'docx') {
-            UI.showProgress(true, 18, 100, '套用 DOCX HOPE...');
-            const docxCellMap = new Map();
-            this.segments.forEach(s => {
-                if (s.meta?.containerType === 'table' && s.meta?.cellKey && s.meta?.cellWidth) {
-                    const k = s.meta.cellKey;
-                    if (!docxCellMap.has(k)) docxCellMap.set(k, []);
-                    docxCellMap.get(k).push(s);
-                }
-            });
-            for (const [, cSegs] of docxCellMap) {
-                const st = this.applyDocxHOPE(cSegs, tgtLangName);
-                if (st) this.stats.hopeStats[st]++;
-            }
         }
 
         const langCode = LANGS.find(l => l.name === tgtLangName)?.code || 'translated';
@@ -2594,6 +2574,35 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
             for (const ref of seg.refs) {
                 if (ref.node) { ref._origNode = ref.node; ref.node = _remap(ref.node); }
                 if (ref.nodes) { ref._origNodes = [...ref.nodes]; ref.nodes = ref.nodes.map(n => _remap(n)); }
+            }
+        }
+        // Remap tcNode in meta to cloned nodes (for HOPE)
+        for (const seg of this.segments) {
+            if (seg.meta?.tcNode) { seg.meta._origTcNode = seg.meta.tcNode; seg.meta.tcNode = _remap(seg.meta.tcNode); }
+        }
+
+        // HOPE processing (PPTX tables) — runs on cloned DOM to protect pristine originals
+        if (useHOPE && this.fileType === 'pptx') {
+            UI.showProgress(true, 15, 100, '套用 HOPE...');
+            const cellMap = new Map();
+            this.segments.forEach(s => { if (s.meta?.containerType === 'table' && s.meta?.cellKey) { const k = s.meta.cellKey; if (!cellMap.has(k)) cellMap.set(k, []); cellMap.get(k).push(s); } });
+            for (const [, cSegs] of cellMap) { const cd = this.table.aggregateCellDensity(cSegs, tgtLangName); if (cd) { const st = this.table.applyHOPE(cd); this.stats.hopeStats[st]++; } }
+        }
+
+        // v19.1: DOCX HOPE processing — runs on cloned DOM
+        if (useHOPE && this.fileType === 'docx') {
+            UI.showProgress(true, 18, 100, '套用 DOCX HOPE...');
+            const docxCellMap = new Map();
+            this.segments.forEach(s => {
+                if (s.meta?.containerType === 'table' && s.meta?.cellKey && s.meta?.cellWidth) {
+                    const k = s.meta.cellKey;
+                    if (!docxCellMap.has(k)) docxCellMap.set(k, []);
+                    docxCellMap.get(k).push(s);
+                }
+            });
+            for (const [, cSegs] of docxCellMap) {
+                const st = this.applyDocxHOPE(cSegs, tgtLangName);
+                if (st) this.stats.hopeStats[st]++;
             }
         }
 
@@ -2684,6 +2693,7 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
                 if (ref._origNode) { ref.node = ref._origNode; delete ref._origNode; }
                 if (ref._origNodes) { ref.nodes = ref._origNodes; delete ref._origNodes; }
             }
+            if (seg.meta?._origTcNode) { seg.meta.tcNode = seg.meta._origTcNode; delete seg.meta._origTcNode; }
         }
 
         // Build completion report
@@ -2712,6 +2722,7 @@ Return ONLY valid JSON: {"terms":[...],"strategy":"..."}`;
                     if (ref._origNode) { ref.node = ref._origNode; delete ref._origNode; }
                     if (ref._origNodes) { ref.nodes = ref._origNodes; delete ref._origNodes; }
                 }
+                if (seg.meta?._origTcNode) { seg.meta.tcNode = seg.meta._origTcNode; delete seg.meta._origTcNode; }
             }
             this._busy = false;
         }
